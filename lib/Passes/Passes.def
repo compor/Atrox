@@ -1,0 +1,6 @@
+#ifndef MODULE_PASS
+#define MODULE_PASS(NAME, CREATE_PASS)
+#endif
+MODULE_PASS("atrox-loop-body-clone", atrox::LoopBodyClonerPass())
+#undef MODULE_PASS
+
