@@ -126,6 +126,7 @@ find_package(Sanitizers)
 #
 
 set(LIB_SOURCES
+  "lib/Analysis/NaiveSelector.cpp"
   "lib/Passes/PassCommandLineOptions.cpp"
   "lib/Passes/RegisterPasses.cpp"
   "lib/Transforms/Passes/LoopBodyClonerPass.cpp"
