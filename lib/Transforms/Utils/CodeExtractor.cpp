@@ -620,6 +620,195 @@ void CodeExtractor::splitReturnBlocks() {
     }
 }
 
+Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
+                                       const ValueSet &outputs,
+                                       BasicBlock *header,
+                                       BasicBlock *newRootNode,
+                                       Function *oldFunction, Module *M) {
+  LLVM_DEBUG(dbgs() << "inputs: " << inputs.size() << "\n");
+  LLVM_DEBUG(dbgs() << "outputs: " << outputs.size() << "\n");
+
+  // This function returns unsigned, outputs will go back by reference.
+  switch (NumExitBlocks) {
+  case 0:
+  case 1:
+    RetTy = Type::getVoidTy(header->getContext());
+    break;
+  case 2:
+    RetTy = Type::getInt1Ty(header->getContext());
+    break;
+  default:
+    RetTy = Type::getInt16Ty(header->getContext());
+    break;
+  }
+
+  std::vector<Type *> paramTy;
+
+  // Add the types of the input values to the function's argument list
+  for (Value *value : inputs) {
+    LLVM_DEBUG(dbgs() << "value used in func: " << *value << "\n");
+    paramTy.push_back(value->getType());
+  }
+
+  // Add the types of the output values to the function's argument list.
+  for (Value *output : outputs) {
+    LLVM_DEBUG(dbgs() << "instr used in func: " << *output << "\n");
+    if (AggregateArgs)
+      paramTy.push_back(output->getType());
+    else
+      paramTy.push_back(PointerType::getUnqual(output->getType()));
+  }
+
+  LLVM_DEBUG({
+    dbgs() << "Function type: " << *RetTy << " f(";
+    for (Type *i : paramTy)
+      dbgs() << *i << ", ";
+    dbgs() << ")\n";
+  });
+
+  StructType *StructTy;
+  if (AggregateArgs && (inputs.size() + outputs.size() > 0)) {
+    StructTy = StructType::get(M->getContext(), paramTy);
+    paramTy.clear();
+    paramTy.push_back(PointerType::getUnqual(StructTy));
+  }
+  FunctionType *funcType = FunctionType::get(
+      RetTy, paramTy, AllowVarArgs && oldFunction->isVarArg());
+
+  // Create the new function
+  Function *newFunction =
+      Function::Create(funcType, GlobalValue::InternalLinkage,
+                       oldFunction->getName() + "_" + header->getName(), M);
+  // If the old function is no-throw, so is the new one.
+  if (oldFunction->doesNotThrow())
+    newFunction->setDoesNotThrow();
+
+  // Inherit the uwtable attribute if we need to.
+  if (oldFunction->hasUWTable())
+    newFunction->setHasUWTable();
+
+  // Inherit all of the target dependent attributes and white-listed
+  // target independent attributes.
+  //  (e.g. If the extracted region contains a call to an x86.sse
+  //  instruction we need to make sure that the extracted region has the
+  //  "target-features" attribute allowing it to be lowered.
+  // FIXME: This should be changed to check to see if a specific
+  //           attribute can not be inherited.
+  for (const auto &Attr : oldFunction->getAttributes().getFnAttributes()) {
+    if (Attr.isStringAttribute()) {
+      if (Attr.getKindAsString() == "thunk")
+        continue;
+    } else
+      switch (Attr.getKindAsEnum()) {
+      // Those attributes cannot be propagated safely. Explicitly list them
+      // here so we get a warning if new attributes are added. This list also
+      // includes non-function attributes.
+      case Attribute::Alignment:
+      case Attribute::AllocSize:
+      case Attribute::ArgMemOnly:
+      case Attribute::Builtin:
+      case Attribute::ByVal:
+      case Attribute::Convergent:
+      case Attribute::Dereferenceable:
+      case Attribute::DereferenceableOrNull:
+      case Attribute::InAlloca:
+      case Attribute::InReg:
+      case Attribute::InaccessibleMemOnly:
+      case Attribute::InaccessibleMemOrArgMemOnly:
+      case Attribute::JumpTable:
+      case Attribute::Naked:
+      case Attribute::Nest:
+      case Attribute::NoAlias:
+      case Attribute::NoBuiltin:
+      case Attribute::NoCapture:
+      case Attribute::NoReturn:
+      case Attribute::None:
+      case Attribute::NonNull:
+      case Attribute::ReadNone:
+      case Attribute::ReadOnly:
+      case Attribute::Returned:
+      case Attribute::ReturnsTwice:
+      case Attribute::SExt:
+      case Attribute::Speculatable:
+      case Attribute::StackAlignment:
+      case Attribute::StructRet:
+      case Attribute::SwiftError:
+      case Attribute::SwiftSelf:
+      case Attribute::WriteOnly:
+      case Attribute::ZExt:
+      case Attribute::EndAttrKinds:
+        continue;
+      // Those attributes should be safe to propagate to the extracted function.
+      case Attribute::AlwaysInline:
+      case Attribute::Cold:
+      case Attribute::NoRecurse:
+      case Attribute::InlineHint:
+      case Attribute::MinSize:
+      case Attribute::NoDuplicate:
+      case Attribute::NoImplicitFloat:
+      case Attribute::NoInline:
+      case Attribute::NonLazyBind:
+      case Attribute::NoRedZone:
+      case Attribute::NoUnwind:
+      case Attribute::OptForFuzzing:
+      case Attribute::OptimizeNone:
+      case Attribute::OptimizeForSize:
+      case Attribute::SafeStack:
+      case Attribute::ShadowCallStack:
+      case Attribute::SanitizeAddress:
+      case Attribute::SanitizeMemory:
+      case Attribute::SanitizeThread:
+      case Attribute::SanitizeHWAddress:
+      case Attribute::StackProtect:
+      case Attribute::StackProtectReq:
+      case Attribute::StackProtectStrong:
+      case Attribute::StrictFP:
+      case Attribute::UWTable:
+      case Attribute::NoCfCheck:
+        break;
+      }
+
+    newFunction->addFnAttr(Attr);
+  }
+  newFunction->getBasicBlockList().push_back(newRootNode);
+
+  // Create an iterator to name all of the arguments we inserted.
+  Function::arg_iterator AI = newFunction->arg_begin();
+
+  // Rewrite all users of the inputs in the extracted region to use the
+  // arguments (or appropriate addressing into struct) instead.
+  for (unsigned i = 0, e = inputs.size(); i != e; ++i) {
+    Value *RewriteVal;
+    if (AggregateArgs) {
+      Value *Idx[2];
+      Idx[0] = Constant::getNullValue(Type::getInt32Ty(header->getContext()));
+      Idx[1] = ConstantInt::get(Type::getInt32Ty(header->getContext()), i);
+      TerminatorInst *TI = newFunction->begin()->getTerminator();
+      GetElementPtrInst *GEP = GetElementPtrInst::Create(
+          StructTy, &*AI, Idx, "gep_" + inputs[i]->getName(), TI);
+      RewriteVal = new LoadInst(GEP, "loadgep_" + inputs[i]->getName(), TI);
+    } else
+      RewriteVal = &*AI++;
+
+    std::vector<User *> Users(inputs[i]->user_begin(), inputs[i]->user_end());
+    for (User *use : Users)
+      if (Instruction *inst = dyn_cast<Instruction>(use))
+        if (Blocks.count(inst->getParent()))
+          inst->replaceUsesOfWith(inputs[i], RewriteVal);
+  }
+
+  // Set names for input and output arguments.
+  if (!AggregateArgs) {
+    AI = newFunction->arg_begin();
+    for (unsigned i = 0, e = inputs.size(); i != e; ++i, ++AI)
+      AI->setName(inputs[i]->getName());
+    for (unsigned i = 0, e = outputs.size(); i != e; ++i, ++AI)
+      AI->setName(outputs[i]->getName() + ".out");
+  }
+
+  return newFunction;
+}
+
 /// constructFunction - make a function based on inputs and outputs, as follows:
 /// f(in0, ..., inN, out0, ..., outN)
 Function *CodeExtractor::constructFunction(const ValueSet &inputs,
@@ -1143,8 +1332,8 @@ Function *CodeExtractor::cloneCodeRegion() {
     }
   }
   ValueSet inputs, outputs;
-  // ValueSet SinkingCands, HoistingCands;
-  // BasicBlock *CommonExit = nullptr;
+  ValueSet SinkingCands, HoistingCands;
+  BasicBlock *CommonExit = nullptr;
 
   // Calculate the entry frequency of the new function before we change the root
   //   block.
@@ -1161,18 +1350,18 @@ Function *CodeExtractor::cloneCodeRegion() {
   }
 #endif
 
-  // TODO see how to handle PHI nodes in cloning
+  // TODO this will have to update the clone blocks
   // If we have to split PHI nodes or the entry block, do so now.
-  // severSplitPHINodes(header);
+  severSplitPHINodes(header);
 
   // TODO same as above
   // If we have any return instructions in the region, split those blocks so
   // that the return is not in the region.
-  // splitReturnBlocks();
+  splitReturnBlocks();
 
   // This takes place of the original loop
-  BasicBlock *codeReplacer =
-      BasicBlock::Create(header->getContext(), "codeRepl", oldFunction, header);
+  // BasicBlock *codeReplacer =
+  // BasicBlock::Create(header->getContext(), "codeRepl", oldFunction, header);
 
   // The new function needs a root node because other nodes can branch to the
   // head of the region, but the entry node of a function cannot have preds.
@@ -1196,7 +1385,6 @@ Function *CodeExtractor::cloneCodeRegion() {
   newFuncRoot->getInstList().push_back(BranchI);
 
   // TODO see how this affects cloning
-#if 0
   findAllocas(SinkingCands, HoistingCands, CommonExit);
   assert(HoistingCands.empty() || CommonExit);
 
@@ -1214,7 +1402,6 @@ Function *CodeExtractor::cloneCodeRegion() {
     for (auto *II : HoistingCands)
       cast<Instruction>(II)->moveBefore(TI);
   }
-#endif // 0
 
   // Calculate the exit blocks for the extracted region and the total exit
   // weights for each of those blocks.
@@ -1238,9 +1425,8 @@ Function *CodeExtractor::cloneCodeRegion() {
 #endif
 
   // Construct new function based on inputs/outputs & add allocas for all defs.
-  Function *newFunction =
-      constructFunction(inputs, outputs, header, newFuncRoot, codeReplacer,
-                        oldFunction, oldFunction->getParent());
+  Function *newFunction = cloneFunction(inputs, outputs, header, newFuncRoot,
+                                        oldFunction, oldFunction->getParent());
 
   // TODO we do not care about profile weights
 #if 0

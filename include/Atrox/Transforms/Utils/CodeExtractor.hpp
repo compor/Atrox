@@ -149,6 +149,10 @@ private:
                               BasicBlock *newHeader, Function *oldFunction,
                               Module *M);
 
+  Function *cloneFunction(const ValueSet &inputs, const ValueSet &outputs,
+                          BasicBlock *header, BasicBlock *newRootNode,
+                          Function *oldFunction, Module *M);
+
   void moveCodeToFunction(Function *newFunction);
 
   void calculateNewCallTerminatorWeights(
