@@ -18,6 +18,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/Transforms/Utils/ValueMapper.h"
 #include <limits>
 
 namespace llvm {
@@ -59,6 +60,8 @@ class CodeExtractor {
   // If true, varargs functions can be extracted.
   bool AllowVarArgs;
 
+  ValueToValueMapTy *VMap;
+
   // Bits of intermediate state computed at various phases of extraction.
   SetVector<BasicBlock *> Blocks;
   unsigned NumExitBlocks = std::numeric_limits<unsigned>::max();
@@ -94,7 +97,7 @@ public:
   /// returns false.
   Function *extractCodeRegion();
 
-  Function *cloneCodeRegion();
+  Function *cloneCodeRegion(ValueToValueMapTy &VMap);
 
   /// Test whether this code extractor is eligible.
   ///

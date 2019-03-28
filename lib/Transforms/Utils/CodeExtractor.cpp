@@ -232,14 +232,14 @@ CodeExtractor::CodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT,
                              BranchProbabilityInfo *BPI, bool AllowVarArgs,
                              bool AllowAlloca)
     : DT(DT), AggregateArgs(AggregateArgs || AggregateArgsOpt), BFI(BFI),
-      BPI(BPI), AllowVarArgs(AllowVarArgs),
+      BPI(BPI), AllowVarArgs(AllowVarArgs), VMap(nullptr),
       Blocks(buildExtractionBlockSet(BBs, DT, AllowVarArgs, AllowAlloca)) {}
 
 CodeExtractor::CodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs,
                              BlockFrequencyInfo *BFI,
                              BranchProbabilityInfo *BPI)
     : DT(&DT), AggregateArgs(AggregateArgs || AggregateArgsOpt), BFI(BFI),
-      BPI(BPI), AllowVarArgs(false),
+      BPI(BPI), AllowVarArgs(false), VMap(nullptr),
       Blocks(buildExtractionBlockSet(L.getBlocks(), &DT,
                                      /* AllowVarArgs */ false,
                                      /* AllowAlloca */ false)) {}
@@ -1304,7 +1304,7 @@ void CodeExtractor::calculateNewCallTerminatorWeights(
       MDBuilder(TI->getContext()).createBranchWeights(BranchWeights));
 }
 
-Function *CodeExtractor::cloneCodeRegion() {
+Function *CodeExtractor::cloneCodeRegion(ValueToValueMapTy &VMap) {
   if (!isEligible())
     return nullptr;
 
@@ -1331,24 +1331,11 @@ Function *CodeExtractor::cloneCodeRegion() {
         return nullptr;
     }
   }
+  this->VMap = &VMap;
+
   ValueSet inputs, outputs;
   ValueSet SinkingCands, HoistingCands;
   BasicBlock *CommonExit = nullptr;
-
-  // Calculate the entry frequency of the new function before we change the root
-  //   block.
-#if 0
-  BlockFrequency EntryFreq;
-  if (BFI) {
-    assert(BPI && "Both BPI and BFI are required to preserve profile info");
-    for (BasicBlock *Pred : predecessors(header)) {
-      if (Blocks.count(Pred))
-        continue;
-      EntryFreq +=
-          BFI->getBlockFreq(Pred) * BPI->getEdgeProbability(Pred, header);
-    }
-  }
-#endif
 
   // TODO this will have to update the clone blocks
   // If we have to split PHI nodes or the entry block, do so now.
@@ -1358,10 +1345,6 @@ Function *CodeExtractor::cloneCodeRegion() {
   // If we have any return instructions in the region, split those blocks so
   // that the return is not in the region.
   splitReturnBlocks();
-
-  // This takes place of the original loop
-  // BasicBlock *codeReplacer =
-  // BasicBlock::Create(header->getContext(), "codeRepl", oldFunction, header);
 
   // The new function needs a root node because other nodes can branch to the
   // head of the region, but the entry node of a function cannot have preds.
@@ -1403,91 +1386,15 @@ Function *CodeExtractor::cloneCodeRegion() {
       cast<Instruction>(II)->moveBefore(TI);
   }
 
-  // Calculate the exit blocks for the extracted region and the total exit
-  // weights for each of those blocks.
-#if 0
-  DenseMap<BasicBlock *, BlockFrequency> ExitWeights;
-  SmallPtrSet<BasicBlock *, 1> ExitBlocks;
-  for (BasicBlock *Block : Blocks) {
-    for (succ_iterator SI = succ_begin(Block), SE = succ_end(Block); SI != SE;
-         ++SI) {
-      if (!Blocks.count(*SI)) {
-        // Update the branch weight for this successor.
-        if (BFI) {
-          BlockFrequency &BF = ExitWeights[*SI];
-          BF += BFI->getBlockFreq(Block) * BPI->getEdgeProbability(Block, *SI);
-        }
-        ExitBlocks.insert(*SI);
-      }
-    }
-  }
-  NumExitBlocks = ExitBlocks.size();
-#endif
-
   // Construct new function based on inputs/outputs & add allocas for all defs.
   Function *newFunction = cloneFunction(inputs, outputs, header, newFuncRoot,
                                         oldFunction, oldFunction->getParent());
-
-  // TODO we do not care about profile weights
-#if 0
-  // Update the entry count of the function.
-  if (BFI) {
-    auto Count = BFI->getProfileCountFromFreq(EntryFreq.getFrequency());
-    if (Count.hasValue())
-      newFunction->setEntryCount(
-          ProfileCount(Count.getValue(), Function::PCT_Real)); // FIXME
-    BFI->setBlockFreq(codeReplacer, EntryFreq.getFrequency());
-  }
-#endif
-
-  // emitCallAndSwitchStatement(newFunction, codeReplacer, inputs, outputs);
 
   moveCodeToFunction(newFunction);
 
   // Propagate personality info to the new function if there is one.
   if (oldFunction->hasPersonalityFn())
     newFunction->setPersonalityFn(oldFunction->getPersonalityFn());
-
-    // Update the branch weights for the exit block.
-    // if (BFI && NumExitBlocks > 1)
-    // calculateNewCallTerminatorWeights(codeReplacer, ExitWeights, BPI);
-
-    // TODO something similar to this might be required in the cloned function
-    // Loop over all of the PHI nodes in the header block, and change any
-    // references to the old incoming edge to be the new incoming edge.
-#if 0
-  for (BasicBlock::iterator I = header->begin(); isa<PHINode>(I); ++I) {
-    PHINode *PN = cast<PHINode>(I);
-    for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
-      if (!Blocks.count(PN->getIncomingBlock(i)))
-        PN->setIncomingBlock(i, newFuncRoot);
-  }
-#endif
-
-    // Look at all successors of the codeReplacer block.  If any of these blocks
-    // had PHI nodes in them, we need to update the "from" block to be the code
-    // replacer, not the original block in the extracted region.
-#if 0
-  std::vector<BasicBlock *> Succs(succ_begin(codeReplacer),
-                                  succ_end(codeReplacer));
-  for (unsigned i = 0, e = Succs.size(); i != e; ++i)
-    for (BasicBlock::iterator I = Succs[i]->begin(); isa<PHINode>(I); ++I) {
-      PHINode *PN = cast<PHINode>(I);
-      std::set<BasicBlock *> ProcessedPreds;
-      for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
-        if (Blocks.count(PN->getIncomingBlock(i))) {
-          if (ProcessedPreds.insert(PN->getIncomingBlock(i)).second)
-            PN->setIncomingBlock(i, codeReplacer);
-          else {
-            // There were multiple entries in the PHI for this block, now there
-            // is only one, so remove the duplicated entries.
-            PN->removeIncomingValue(i, false);
-            --i;
-            --e;
-          }
-        }
-    }
-#endif
 
   LLVM_DEBUG(if (verifyFunction(*newFunction))
                  report_fatal_error("verifyFunction failed!"));

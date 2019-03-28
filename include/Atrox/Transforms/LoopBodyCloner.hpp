@@ -4,6 +4,8 @@
 
 #include "Atrox/Config.hpp"
 
+#include "Atrox/Transforms/Utils/CodeExtractor.hpp"
+
 #include "llvm/IR/Module.h"
 // using llvm::Module
 
@@ -48,6 +50,8 @@ public:
       cloneBlocks.push_back(cloneBasicBlock(e, VMap, ".clone", curFunc));
       VMap[e] = &cloneBlocks.back();
     }
+
+    llvm::CodeExtractor ce{blocks};
 
     return hasChanged;
   }
