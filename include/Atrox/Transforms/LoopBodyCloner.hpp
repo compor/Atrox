@@ -10,6 +10,9 @@
 #include "llvm/Analysis/LoopInfo.h"
 // using llvm::Loop
 
+#include "llvm/Transforms/Utils/ValueMapper.h"
+// using llvm::ValueToValueMapTy
+
 #include "llvm/Support/Debug.h"
 // using DEBUG macro
 // using llvm::dbgs
@@ -25,6 +28,7 @@ public:
   explicit LoopBodyCloner(llvm::Module &CurM) : TargetModule(&CurM) {}
 
   template <typename T> bool clone(llvm::Loop &CurLoop) {
+    bool hasChanged = false;
     T selector{CurLoop};
 
     auto blocks = selector.getBlocks();
@@ -32,10 +36,20 @@ public:
     if (blocks.empty()) {
       LLVM_DEBUG(llvm::dbgs()
                  << "Skipping loop because no blocks were selected.\n");
-      return false;
+      return hasChanged;
     }
 
-    return false;
+    llvm::SmallVector<llvm::BasicBlock *, 16> cloneBlocks;
+
+    auto *curFunc = CurLoop.getHeader()->getParent();
+    llvm::ValueToValueMapTy VMap;
+
+    for (auto *e : blocks) {
+      cloneBlocks.push_back(cloneBasicBlock(e, VMap, ".clone", curFunc));
+      VMap[e] = &cloneBlocks.back();
+    }
+
+    return hasChanged;
   }
 };
 
