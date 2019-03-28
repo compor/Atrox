@@ -59,6 +59,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Cloning.h"
 #include <cassert>
 #include <cstdint>
 #include <iterator>
@@ -561,6 +562,9 @@ void CodeExtractor::severSplitPHINodes(BasicBlock *&Header) {
   BasicBlock *OldPred = Header;
   Blocks.remove(OldPred);
   Blocks.insert(NewBB);
+  if (!VMap) {
+    (*VMap)[OldPred] = NewBB;
+  }
   Header = NewBB;
 
   // Okay, now we need to adjust the PHI nodes and any branches from within the
@@ -617,6 +621,15 @@ void CodeExtractor::splitReturnBlocks() {
         for (DomTreeNode *I : Children)
           DT->changeImmediateDominator(I, NewNode);
       }
+      if (!VMap) {
+        for (auto &e : *Block) {
+          VMap->erase(&e);
+        }
+        VMap->erase(Block);
+        auto *cloneBlock =
+            CloneBasicBlock(Block, *VMap, ".clone", Block->getParent());
+        (*VMap)[Block] = cloneBlock;
+      }
     }
 }
 
@@ -629,18 +642,18 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
   LLVM_DEBUG(dbgs() << "outputs: " << outputs.size() << "\n");
 
   // This function returns unsigned, outputs will go back by reference.
-  switch (NumExitBlocks) {
-  case 0:
-  case 1:
-    RetTy = Type::getVoidTy(header->getContext());
-    break;
-  case 2:
-    RetTy = Type::getInt1Ty(header->getContext());
-    break;
-  default:
-    RetTy = Type::getInt16Ty(header->getContext());
-    break;
-  }
+  // switch (NumExitBlocks) {
+  // case 0:
+  // case 1:
+  RetTy = Type::getVoidTy(header->getContext());
+  // break;
+  // case 2:
+  // RetTy = Type::getInt1Ty(header->getContext());
+  // break;
+  // default:
+  // RetTy = Type::getInt16Ty(header->getContext());
+  // break;
+  //}
 
   std::vector<Type *> paramTy;
 
@@ -1337,11 +1350,9 @@ Function *CodeExtractor::cloneCodeRegion(ValueToValueMapTy &VMap) {
   ValueSet SinkingCands, HoistingCands;
   BasicBlock *CommonExit = nullptr;
 
-  // TODO this will have to update the clone blocks
   // If we have to split PHI nodes or the entry block, do so now.
   severSplitPHINodes(header);
 
-  // TODO same as above
   // If we have any return instructions in the region, split those blocks so
   // that the return is not in the region.
   splitReturnBlocks();
@@ -1390,7 +1401,7 @@ Function *CodeExtractor::cloneCodeRegion(ValueToValueMapTy &VMap) {
   Function *newFunction = cloneFunction(inputs, outputs, header, newFuncRoot,
                                         oldFunction, oldFunction->getParent());
 
-  moveCodeToFunction(newFunction);
+  // moveCodeToFunction(newFunction);
 
   // Propagate personality info to the new function if there is one.
   if (oldFunction->hasPersonalityFn())

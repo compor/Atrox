@@ -15,6 +15,9 @@
 #include "llvm/Transforms/Utils/ValueMapper.h"
 // using llvm::ValueToValueMapTy
 
+#include "llvm/Transforms/Utils/Cloning.h"
+// using llvm::cloneBasicBlock
+
 #include "llvm/Support/Debug.h"
 // using DEBUG macro
 // using llvm::dbgs
@@ -47,7 +50,7 @@ public:
     llvm::ValueToValueMapTy VMap;
 
     for (auto *e : blocks) {
-      cloneBlocks.push_back(cloneBasicBlock(e, VMap, ".clone", curFunc));
+      cloneBlocks.push_back(CloneBasicBlock(e, VMap, ".clone", curFunc));
       VMap[e] = &cloneBlocks.back();
     }
 
