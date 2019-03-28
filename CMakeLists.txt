@@ -129,6 +129,7 @@ set(LIB_SOURCES
   "lib/Analysis/NaiveSelector.cpp"
   "lib/Passes/PassCommandLineOptions.cpp"
   "lib/Passes/RegisterPasses.cpp"
+  "lib/Transforms/Utils/CodeExtractor.cpp"
   "lib/Transforms/Passes/LoopBodyClonerPass.cpp"
   )
 
