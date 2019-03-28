@@ -17,7 +17,7 @@ namespace llvm {
 class Module;
 } // namespace llvm
 
-#define ATROX_LOOPBODYCLONER_PASS_NAME "atrox-loop-body-clone"
+#define ATROX_LOOPBODYCLONER_PASS_NAME "atrox-lbc-pass"
 
 namespace atrox {
 

@@ -10,6 +10,8 @@
 
 #include "Atrox/Transforms/Passes/LoopBodyClonerPass.hpp"
 
+#include "Atrox/Transforms/LoopBodyCloner.hpp"
+
 #include "private/PassCommandLineOptions.hpp"
 
 #include "llvm/Pass.h"
@@ -89,7 +91,6 @@ LoopBodyClonerPass::LoopBodyClonerPass() {
 
 bool LoopBodyClonerPass::run(llvm::Module &M) {
   bool hasChanged = false;
-  // LoopBodyCloner lpc;
 
   for (auto &func : M) {
     if (FunctionWhiteList.size()) {
@@ -102,6 +103,7 @@ bool LoopBodyClonerPass::run(llvm::Module &M) {
     }
 
     // TODO
+    LoopBodyCloner lpc{M};
     hasChanged |= false;
   }
 
