@@ -45,7 +45,7 @@ public:
       if (blocks.empty()) {
         LLVM_DEBUG(llvm::dbgs()
                    << "Skipping loop because no blocks were selected.\n");
-        return hasChanged;
+        continue;
       }
 
       llvm::CodeExtractor ce{blocks};
