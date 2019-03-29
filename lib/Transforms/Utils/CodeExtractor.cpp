@@ -1435,6 +1435,8 @@ Function *CodeExtractor::cloneCodeRegion() {
   Function *newFunction = cloneFunction(inputs, outputs, header, newFuncRoot,
                                         oldFunction, oldFunction->getParent());
 
+  remapCloneBlocks();
+
   moveBlocksToFunction(CloneBlocks, newFunction);
 
   // Propagate personality info to the new function if there is one.
