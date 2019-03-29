@@ -12,12 +12,6 @@
 #include "llvm/Analysis/LoopInfo.h"
 // using llvm::Loop
 
-#include "llvm/Transforms/Utils/ValueMapper.h"
-// using llvm::ValueToValueMapTy
-
-#include "llvm/Transforms/Utils/Cloning.h"
-// using llvm::cloneBasicBlock
-
 #include "llvm/Support/Debug.h"
 // using DEBUG macro
 // using llvm::dbgs
@@ -42,16 +36,6 @@ public:
       LLVM_DEBUG(llvm::dbgs()
                  << "Skipping loop because no blocks were selected.\n");
       return hasChanged;
-    }
-
-    llvm::SmallVector<llvm::BasicBlock *, 16> cloneBlocks;
-
-    auto *curFunc = CurLoop.getHeader()->getParent();
-    llvm::ValueToValueMapTy VMap;
-
-    for (auto *e : blocks) {
-      cloneBlocks.push_back(CloneBasicBlock(e, VMap, ".clone", curFunc));
-      VMap[e] = &cloneBlocks.back();
     }
 
     llvm::CodeExtractor ce{blocks};

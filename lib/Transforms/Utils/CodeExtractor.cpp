@@ -233,14 +233,14 @@ CodeExtractor::CodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT,
                              BranchProbabilityInfo *BPI, bool AllowVarArgs,
                              bool AllowAlloca)
     : DT(DT), AggregateArgs(AggregateArgs || AggregateArgsOpt), BFI(BFI),
-      BPI(BPI), AllowVarArgs(AllowVarArgs), VMap(nullptr),
+      BPI(BPI), AllowVarArgs(AllowVarArgs),
       Blocks(buildExtractionBlockSet(BBs, DT, AllowVarArgs, AllowAlloca)) {}
 
 CodeExtractor::CodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs,
                              BlockFrequencyInfo *BFI,
                              BranchProbabilityInfo *BPI)
     : DT(&DT), AggregateArgs(AggregateArgs || AggregateArgsOpt), BFI(BFI),
-      BPI(BPI), AllowVarArgs(false), VMap(nullptr),
+      BPI(BPI), AllowVarArgs(false),
       Blocks(buildExtractionBlockSet(L.getBlocks(), &DT,
                                      /* AllowVarArgs */ false,
                                      /* AllowAlloca */ false)) {}
@@ -562,9 +562,6 @@ void CodeExtractor::severSplitPHINodes(BasicBlock *&Header) {
   BasicBlock *OldPred = Header;
   Blocks.remove(OldPred);
   Blocks.insert(NewBB);
-  if (!VMap) {
-    (*VMap)[OldPred] = NewBB;
-  }
   Header = NewBB;
 
   // Okay, now we need to adjust the PHI nodes and any branches from within the
@@ -621,16 +618,13 @@ void CodeExtractor::splitReturnBlocks() {
         for (DomTreeNode *I : Children)
           DT->changeImmediateDominator(I, NewNode);
       }
-      if (!VMap) {
-        for (auto &e : *Block) {
-          VMap->erase(&e);
-        }
-        VMap->erase(Block);
-        auto *cloneBlock =
-            CloneBasicBlock(Block, *VMap, ".clone", Block->getParent());
-        (*VMap)[Block] = cloneBlock;
-      }
     }
+}
+
+void CodeExtractor::remapCloneBlocks() {
+  llvm::SmallVector<llvm::BasicBlock *, 32> cloneBlocks{CloneBlocks.begin(),
+                                                        CloneBlocks.end()};
+  remapInstructionsInBlocks(cloneBlocks, VMap);
 }
 
 Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
@@ -806,7 +800,7 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
     std::vector<User *> Users(inputs[i]->user_begin(), inputs[i]->user_end());
     for (User *use : Users)
       if (Instruction *inst = dyn_cast<Instruction>(use))
-        if (Blocks.count(inst->getParent()))
+        if (CloneBlocks.count(inst->getParent()))
           inst->replaceUsesOfWith(inputs[i], RewriteVal);
   }
 
@@ -1272,6 +1266,21 @@ void CodeExtractor::moveCodeToFunction(Function *newFunction) {
   }
 }
 
+void CodeExtractor::moveBlocksToFunction(ArrayRef<BasicBlock *> Blocks,
+                                         Function *newFunction) {
+  Function *oldFunc = (*Blocks.begin())->getParent();
+  Function::BasicBlockListType &oldBlocks = oldFunc->getBasicBlockList();
+  Function::BasicBlockListType &newBlocks = newFunction->getBasicBlockList();
+
+  for (BasicBlock *Block : Blocks) {
+    // Delete the basic block from the old function, and the list of blocks
+    oldBlocks.remove(Block);
+
+    // Insert this basic block into the new function
+    newBlocks.push_back(Block);
+  }
+}
+
 void CodeExtractor::calculateNewCallTerminatorWeights(
     BasicBlock *CodeReplacer,
     DenseMap<BasicBlock *, BlockFrequency> &ExitWeights,
@@ -1317,7 +1326,7 @@ void CodeExtractor::calculateNewCallTerminatorWeights(
       MDBuilder(TI->getContext()).createBranchWeights(BranchWeights));
 }
 
-Function *CodeExtractor::cloneCodeRegion(ValueToValueMapTy &VMap) {
+Function *CodeExtractor::cloneCodeRegion() {
   if (!isEligible())
     return nullptr;
 
@@ -1344,7 +1353,6 @@ Function *CodeExtractor::cloneCodeRegion(ValueToValueMapTy &VMap) {
         return nullptr;
     }
   }
-  this->VMap = &VMap;
 
   ValueSet inputs, outputs;
   ValueSet SinkingCands, HoistingCands;
@@ -1378,7 +1386,6 @@ Function *CodeExtractor::cloneCodeRegion(ValueToValueMapTy &VMap) {
   }
   newFuncRoot->getInstList().push_back(BranchI);
 
-  // TODO see how this affects cloning
   findAllocas(SinkingCands, HoistingCands, CommonExit);
   assert(HoistingCands.empty() || CommonExit);
 
@@ -1397,11 +1404,16 @@ Function *CodeExtractor::cloneCodeRegion(ValueToValueMapTy &VMap) {
       cast<Instruction>(II)->moveBefore(TI);
   }
 
+  for (auto *b : Blocks) {
+    CloneBlocks.insert(CloneBasicBlock(b, VMap, ".clone", oldFunction));
+    VMap[b] = CloneBlocks.back();
+  }
+
   // Construct new function based on inputs/outputs & add allocas for all defs.
   Function *newFunction = cloneFunction(inputs, outputs, header, newFuncRoot,
                                         oldFunction, oldFunction->getParent());
 
-  // moveCodeToFunction(newFunction);
+  moveBlocksToFunction(CloneBlocks.getArrayRef(), newFunction);
 
   // Propagate personality info to the new function if there is one.
   if (oldFunction->hasPersonalityFn())
