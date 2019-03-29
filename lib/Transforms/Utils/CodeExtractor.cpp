@@ -78,7 +78,7 @@ using ProfileCount = Function::ProfileCount;
 // extracted functions to pthread-based code, as only one argument (void*) can
 // be passed in to pthread_create().
 static cl::opt<bool> AggregateArgsOpt(
-    "aggregate-extracted-args", cl::Hidden,
+    "atrox-aggregate-extracted-args", cl::Hidden,
     cl::desc("Aggregate arguments to code-extracted functions"));
 
 /// Test whether a block is valid for extraction.
