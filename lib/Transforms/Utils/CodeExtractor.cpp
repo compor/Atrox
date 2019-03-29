@@ -623,9 +623,7 @@ void CodeExtractor::splitReturnBlocks() {
 }
 
 void CodeExtractor::remapCloneBlocks() {
-  llvm::SmallVector<llvm::BasicBlock *, 32> cloneBlocks{CloneBlocks.begin(),
-                                                        CloneBlocks.end()};
-  remapInstructionsInBlocks(cloneBlocks, VMap);
+  remapInstructionsInBlocks(CloneBlocks, VMap);
 }
 
 Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
@@ -800,9 +798,12 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
 
     std::vector<User *> Users(inputs[i]->user_begin(), inputs[i]->user_end());
     for (User *use : Users)
-      if (Instruction *inst = dyn_cast<Instruction>(use))
-        if (CloneBlocks.count(inst->getParent()))
+      if (Instruction *inst = dyn_cast<Instruction>(use)) {
+        auto found = std::find(CloneBlocks.begin(), CloneBlocks.end(),
+                               inst->getParent());
+        if (found != CloneBlocks.end())
           inst->replaceUsesOfWith(inputs[i], RewriteVal);
+      }
   }
 
   // Set names for input and output arguments.
@@ -1406,7 +1407,7 @@ Function *CodeExtractor::cloneCodeRegion() {
   }
 
   for (auto *b : Blocks) {
-    CloneBlocks.insert(CloneBasicBlock(b, VMap, ".clone", oldFunction));
+    CloneBlocks.push_back(CloneBasicBlock(b, VMap, ".clone", oldFunction));
     VMap[b] = CloneBlocks.back();
   }
 
@@ -1414,7 +1415,7 @@ Function *CodeExtractor::cloneCodeRegion() {
   Function *newFunction = cloneFunction(inputs, outputs, header, newFuncRoot,
                                         oldFunction, oldFunction->getParent());
 
-  moveBlocksToFunction(CloneBlocks.getArrayRef(), newFunction);
+  moveBlocksToFunction(CloneBlocks, newFunction);
 
   // Propagate personality info to the new function if there is one.
   if (oldFunction->hasPersonalityFn())
