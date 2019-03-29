@@ -815,6 +815,12 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
       AI->setName(outputs[i]->getName() + ".out");
   }
 
+  // Set entry block successor to the clone blocks header
+  auto *cloneHeader = cast_or_null<llvm::BasicBlock>(VMap[header]);
+  auto *term = dyn_cast<BranchInst>(newRootNode->getTerminator());
+  term->setSuccessor(0, cloneHeader);
+
+  // Divert all exiting branches to the single exit block of the new function
   auto *exitBlock =
       BasicBlock::Create(newFunction->getContext(), "exit", newFunction);
   auto *ret = ReturnInst::Create(newFunction->getContext(), exitBlock);
