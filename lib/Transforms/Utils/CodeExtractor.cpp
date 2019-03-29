@@ -815,6 +815,20 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
       AI->setName(outputs[i]->getName() + ".out");
   }
 
+  auto *exitBlock =
+      BasicBlock::Create(newFunction->getContext(), "exit", newFunction);
+  auto *ret = ReturnInst::Create(newFunction->getContext(), exitBlock);
+
+  for (auto *e : CloneBlocks) {
+    auto *term = e->getTerminator();
+
+    for (size_t i = 0; i < term->getNumSuccessors(); ++i) {
+      if (!Blocks.count(term->getSuccessor(i))) {
+        term->setSuccessor(i, exitBlock);
+      }
+    }
+  }
+
   return newFunction;
 }
 
