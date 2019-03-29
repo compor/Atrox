@@ -1443,8 +1443,11 @@ Function *CodeExtractor::cloneCodeRegion() {
   if (oldFunction->hasPersonalityFn())
     newFunction->setPersonalityFn(oldFunction->getPersonalityFn());
 
-  LLVM_DEBUG(if (verifyFunction(*newFunction))
-                 report_fatal_error("verifyFunction failed!"));
+  LLVM_DEBUG(if (verifyFunction(*newFunction)) {
+    newFunction->dump();
+    report_fatal_error("verifyFunction failed!");
+  });
+
   return newFunction;
 }
 
