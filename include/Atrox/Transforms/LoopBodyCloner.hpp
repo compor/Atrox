@@ -9,7 +9,14 @@
 #include "llvm/IR/Module.h"
 // using llvm::Module
 
+#include "llvm/IR/Function.h"
+// using llvm::Function
+
+#include "llvm/IR/Dominators.h"
+// using llvm::DominatorTree
+
 #include "llvm/Analysis/LoopInfo.h"
+// using llvm::LoopInfo
 // using llvm::Loop
 
 #include "llvm/Support/Debug.h"
@@ -26,19 +33,23 @@ class LoopBodyCloner {
 public:
   explicit LoopBodyCloner(llvm::Module &CurM) : TargetModule(&CurM) {}
 
-  template <typename T> bool clone(llvm::Loop &CurLoop) {
+  template <typename T> bool cloneLoops(llvm::Function &F) {
+    llvm::LoopInfo LI{llvm::DominatorTree(const_cast<llvm::Function &>(F))};
     bool hasChanged = false;
-    T selector{CurLoop};
 
-    auto blocks = selector.getBlocks();
+    for (auto &curLoop : LI) {
+      T selector{curLoop};
 
-    if (blocks.empty()) {
-      LLVM_DEBUG(llvm::dbgs()
-                 << "Skipping loop because no blocks were selected.\n");
-      return hasChanged;
+      auto blocks = selector.getBlocks();
+
+      if (blocks.empty()) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Skipping loop because no blocks were selected.\n");
+        return hasChanged;
+      }
+
+      llvm::CodeExtractor ce{blocks};
     }
-
-    llvm::CodeExtractor ce{blocks};
 
     return hasChanged;
   }

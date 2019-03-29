@@ -8,6 +8,8 @@
 
 #include "Atrox/Debug.hpp"
 
+#include "Atrox/Analysis/NaiveSelector.hpp"
+
 #include "Atrox/Transforms/Passes/LoopBodyClonerPass.hpp"
 
 #include "Atrox/Transforms/LoopBodyCloner.hpp"
@@ -102,9 +104,8 @@ bool LoopBodyClonerPass::run(llvm::Module &M) {
       }
     }
 
-    // TODO
     LoopBodyCloner lpc{M};
-    hasChanged |= false;
+    hasChanged |= lpc.cloneLoops<NaiveSelector>(func);
   }
 
   return hasChanged;
@@ -126,6 +127,7 @@ void LoopBodyClonerLegacyPass::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
 
 bool LoopBodyClonerLegacyPass::runOnModule(llvm::Module &M) {
   LoopBodyClonerPass pass;
+
   return pass.run(M);
 }
 
