@@ -69,9 +69,10 @@
 #include <vector>
 
 using namespace llvm;
+using namespace atrox;
 using ProfileCount = Function::ProfileCount;
 
-#define DEBUG_TYPE "code-extractor"
+#define DEBUG_TYPE "atrox-code-extractor"
 
 // Provide a command-line option to aggregate function arguments into a struct
 // for functions produced by the code extractor. This is useful when converting

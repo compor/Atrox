@@ -35,6 +35,12 @@ class Module;
 class Type;
 class Value;
 
+} // namespace llvm
+
+namespace atrox {
+
+using namespace llvm;
+
 /// Utility class for extracting code into a new function.
 ///
 /// This utility provides a simple interface for extracting some sequence of
@@ -174,6 +180,6 @@ private:
                                   ValueSet &inputs, ValueSet &outputs);
 };
 
-} // end namespace llvm
+} // namespace atrox
 
 #endif // LLVM_TRANSFORMS_UTILS_CODEEXTRACTOR_H

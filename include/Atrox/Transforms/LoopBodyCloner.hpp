@@ -48,7 +48,7 @@ public:
         continue;
       }
 
-      llvm::CodeExtractor ce{blocks};
+      atrox::CodeExtractor ce{blocks};
     }
 
     return hasChanged;
