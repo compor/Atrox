@@ -120,13 +120,22 @@ set(CMAKE_MODULE_LINKER_FLAGS
 
 # dependencies
 
+find_package(Pedigree CONFIG)
 find_package(Boost REQUIRED)
 find_package(Sanitizers)
+
+if(Pedigree_FOUND)
+  set(${PRJ_NAME_UPPER}_USES_PEDIGREE 1)
+else()
+  set(${PRJ_NAME_UPPER}_USES_PEDIGREE 0)
+  message(FATAL_ERROR "package Pedigree was not found.")
+endif()
 
 #
 
 set(LIB_SOURCES
   "lib/Analysis/NaiveSelector.cpp"
+  "lib/Analysis/IteratorRecognitionSelector.cpp"
   "lib/Passes/PassCommandLineOptions.cpp"
   "lib/Passes/RegisterPasses.cpp"
   "lib/Transforms/Utils/CodeExtractor.cpp"
@@ -176,6 +185,11 @@ foreach(PRJ_LIB ${PRJ_LIB_NAMES})
 
   target_include_directories(${PRJ_LIB} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/lib/include>)
+
+  if(Pedigree_FOUND)
+    target_include_directories(${PRJ_LIB} PUBLIC
+      $<TARGET_PROPERTY:LLVMPedigreePass,INTERFACE_INCLUDE_DIRECTORIES>)
+  endif()
 endforeach()
 
 # workaround for OBJECT libraries since they are not first class citizens
@@ -198,6 +212,14 @@ add_sanitizers(${OBJ_LIB_NAME})
 llvm_map_components_to_libnames(LLVM_LIBS core support analysis passes)
 
 target_link_libraries(${TEST_LIB_NAME} PUBLIC ${LLVM_LIBS})
+
+if(Pedigree_FOUND)
+  target_link_libraries(${TEST_LIB_NAME} PUBLIC LLVMPedigreePass)
+
+  if(ATROX_RPATH_LINK_DEPENDENCIES)
+    target_link_libraries(${LIB_NAME} PUBLIC LLVMPedigreePass)
+  endif()
+endif()
 
 if(${LLVM_SHARED_MODE} STREQUAL "STATIC")
   target_link_libraries(${LIB_NAME} PUBLIC ${LLVM_LIBS})
@@ -239,6 +261,11 @@ set(PRJ_CMAKE_CONFIG_FILE "config.cmake")
 set(PRJ_CMAKE_CONFIG_EXTRA_FILE "config-extra.cmake")
 
 set(DEPENDEE "")
+
+if(Pedigree_FOUND)
+  get_target_property(Pedigree_LOCATION LLVMPedigreePass LOCATION)
+  list(APPEND DEPENDEE ${Pedigree_LOCATION})
+endif()
 
 install(TARGETS ${LIB_NAME} EXPORT ${ATROX_EXPORT}
   ARCHIVE DESTINATION "${CMAKE_INSTALL_LIBDIR}"
