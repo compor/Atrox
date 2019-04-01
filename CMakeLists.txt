@@ -121,6 +121,7 @@ set(CMAKE_MODULE_LINKER_FLAGS
 # dependencies
 
 find_package(Pedigree CONFIG)
+find_package(IteratorRecognition CONFIG)
 find_package(Boost REQUIRED)
 find_package(Sanitizers)
 
@@ -129,6 +130,13 @@ if(Pedigree_FOUND)
 else()
   set(${PRJ_NAME_UPPER}_USES_PEDIGREE 0)
   message(FATAL_ERROR "package Pedigree was not found.")
+endif()
+
+if(IteratorRecognition_FOUND)
+  set(${PRJ_NAME_UPPER}_USES_ITERATORRECOGNITION 1)
+else()
+  set(${PRJ_NAME_UPPER}_USES_ITERATORRECOGNITION 0)
+  message(FATAL_ERROR "package IteratorRecognition was not found.")
 endif()
 
 #
@@ -190,6 +198,11 @@ foreach(PRJ_LIB ${PRJ_LIB_NAMES})
     target_include_directories(${PRJ_LIB} PUBLIC
       $<TARGET_PROPERTY:LLVMPedigreePass,INTERFACE_INCLUDE_DIRECTORIES>)
   endif()
+
+  if(IteratorRecognition_FOUND)
+    target_include_directories(${PRJ_LIB} PUBLIC
+      $<TARGET_PROPERTY:LLVMIteratorRecognitionPass,INTERFACE_INCLUDE_DIRECTORIES>)
+  endif()
 endforeach()
 
 # workaround for OBJECT libraries since they are not first class citizens
@@ -218,6 +231,14 @@ if(Pedigree_FOUND)
 
   if(ATROX_RPATH_LINK_DEPENDENCIES)
     target_link_libraries(${LIB_NAME} PUBLIC LLVMPedigreePass)
+  endif()
+endif()
+
+if(IteratorRecognition_FOUND)
+  target_link_libraries(${TEST_LIB_NAME} PUBLIC LLVMIteratorRecognitonPass)
+
+  if(ATROX_RPATH_LINK_DEPENDENCIES)
+    target_link_libraries(${LIB_NAME} PUBLIC LLVMIteratorRecognitionPass)
   endif()
 endif()
 
@@ -265,6 +286,11 @@ set(DEPENDEE "")
 if(Pedigree_FOUND)
   get_target_property(Pedigree_LOCATION LLVMPedigreePass LOCATION)
   list(APPEND DEPENDEE ${Pedigree_LOCATION})
+endif()
+
+if(IteratorRecognition_FOUND)
+  get_target_property(IteratorRecognition_LOCATION LLVMIteratorRecognitionPass LOCATION)
+  list(APPEND DEPENDEE ${IteratorRecognition_LOCATION})
 endif()
 
 install(TARGETS ${LIB_NAME} EXPORT ${ATROX_EXPORT}
