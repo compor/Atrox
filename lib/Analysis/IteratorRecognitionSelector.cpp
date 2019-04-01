@@ -10,6 +10,12 @@
 
 #include "Pedigree/Analysis/Creational/MDAMDGraphBuilder.hpp"
 
+#include "Pedigree/Analysis/Creational/PDGraphBuilder.hpp"
+
+#include "Pedigree/Support/GraphConverter.hpp"
+
+#include "Pedigree/Support/Utils/UnitConverters.hpp"
+
 #include "Pedigree/Support/Utils/InstIterator.hpp"
 
 #include "llvm/Analysis/LoopInfo.h"
@@ -32,10 +38,21 @@ IteratorRecognitionSelector::IteratorRecognitionSelector(
 
   pedigree::CDGraphBuilder cdgBuilder{};
   auto cdgraph = cdgBuilder.setUnit(Func).build();
+  decltype(ddgraph) icdgraph;
+  pedigree::Convert(*cdgraph, *icdgraph,
+                    pedigree::BlockToTerminatorUnitConverter{},
+                    pedigree::BlockToInstructionsUnitConverter{});
 
   pedigree::MDAMDGraphBuilder mdgBuilder{};
   auto mdgraph = mdgBuilder.setAnalysis(*CurMD).build(
       pedigree::make_inst_begin(Func), pedigree::make_inst_end(Func));
+
+  pedigree::PDGraphBuilder builder{};
+
+  builder.addGraph(*ddgraph).addGraph(*icdgraph).addGraph(*mdgraph);
+  auto pdgraph = builder.build();
+
+  pdgraph->connectRootNode();
 }
 
 void IteratorRecognitionSelector::calculate(llvm::Loop &L) {}
