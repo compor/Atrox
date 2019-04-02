@@ -82,6 +82,23 @@ static llvm::RegisterStandardPasses RegisterLoopBodyClonerLegacyPass(
 
 //
 
+enum class SelectionStrategy { Naive, IteratorRecognitionBased };
+
+static llvm::cl::bits<SelectionStrategy> SelectionStrategyOption(
+    "atrox-selection-strategy", llvm::cl::desc("block selection strategy"),
+    llvm::cl::values(clEnumValN(SelectionStrategy::Naive, "naive", "naive"),
+                     clEnumValN(SelectionStrategy::IteratorRecognitionBased,
+                                "itr", "iterator recognition based")),
+    llvm::cl::CommaSeparated, llvm::cl::cat(AtroxCLCategory));
+
+static void checkAndSetCmdLineOptions() {
+  if (!SelectionStrategyOption.getBits()) {
+    SelectionStrategyOption.addValue(SelectionStrategy::Naive);
+  }
+}
+
+//
+
 namespace atrox {
 
 // new passmanager pass
@@ -89,6 +106,8 @@ namespace atrox {
 LoopBodyClonerPass::LoopBodyClonerPass() {
   llvm::cl::ResetAllOptionOccurrences();
   llvm::cl::ParseEnvironmentOptions(DEBUG_TYPE, PASS_CMDLINE_OPTIONS_ENVVAR);
+
+  checkAndSetCmdLineOptions();
 }
 
 bool LoopBodyClonerPass::run(llvm::Module &M) {
