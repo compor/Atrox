@@ -30,20 +30,18 @@ class IteratorRecognitionSelector {
   llvm::Function *CurFunc;
   llvm::LoopInfo *CurLI;
   llvm::MemoryDependenceResults *CurMD;
-  llvm::SmallVector<llvm::BasicBlock *, 32> Blocks;
   std::unique_ptr<iteratorrecognition::IteratorRecognitionInfo> Info;
 
-  void calculate(llvm::Loop &L);
+  void calculate(llvm::Loop &L,
+                 llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks);
 
 public:
   IteratorRecognitionSelector(llvm::Function &Func, llvm::LoopInfo &LI,
                               llvm::MemoryDependenceResults *MD);
 
-  const llvm::SmallVectorImpl<llvm::BasicBlock *> &getBlocks(llvm::Loop &L) {
-    Blocks.clear();
-    calculate(L);
-
-    return Blocks;
+  void getBlocks(llvm::Loop &L,
+                 llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks) {
+    calculate(L, Blocks);
   }
 };
 

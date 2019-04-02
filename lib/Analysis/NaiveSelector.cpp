@@ -9,13 +9,12 @@
 
 namespace atrox {
 
-void NaiveSelector::calculate() {
-  auto *hdr = CurLoop->getHeader();
+void NaiveSelector::calculate(
+    llvm::Loop &L, llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks) {
+  auto *hdr = L.getHeader();
 
-  Blocks.clear();
-
-  for (auto *e : CurLoop->getBlocks()) {
-    if (e == hdr || CurLoop->isLoopLatch(e)) {
+  for (auto *e : L.getBlocks()) {
+    if (e == hdr || L.isLoopLatch(e)) {
       continue;
     }
 

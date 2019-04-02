@@ -74,7 +74,8 @@ IteratorRecognitionSelector::IteratorRecognitionSelector(
   Info = std::make_unique<decltype(Info)::element_type>(LI, *pdgraph);
 }
 
-void IteratorRecognitionSelector::calculate(llvm::Loop &L) {
+void IteratorRecognitionSelector::calculate(
+    llvm::Loop &L, llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks) {
   llvm::LoopBlocksRPO RPOTraversal(&L);
   RPOTraversal.perform(CurLI);
   llvm::SmallVector<llvm::BasicBlock *, 16> blocks{RPOTraversal.begin(),

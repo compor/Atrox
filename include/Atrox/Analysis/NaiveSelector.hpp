@@ -6,8 +6,8 @@
 
 #include "Atrox/Config.hpp"
 
-#include <vector>
-// using std::vector
+#include "llvm/ADT/SmallVector.h"
+// usiing llvm::SmallVector
 
 #include <cassert>
 // using assert
@@ -20,29 +20,15 @@ class Loop;
 namespace atrox {
 
 class NaiveSelector {
-  llvm::Loop *CurLoop;
-  std::vector<llvm::BasicBlock *> Blocks;
-  mutable bool HasChanged;
-
-  void calculate();
+  void calculate(llvm::Loop &L,
+                 llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks);
 
 public:
-  explicit NaiveSelector(llvm::Loop *L) : CurLoop(L), HasChanged(true) {}
+  explicit NaiveSelector() = default;
 
-  void setLoop(llvm::Loop *L) {
-    CurLoop = L;
-    HasChanged = true;
-  }
-
-  const std::vector<llvm::BasicBlock *> &getBlocks() {
-    assert(CurLoop && "Loop pointer is empty!");
-
-    if (HasChanged) {
-      calculate();
-      HasChanged = false;
-    }
-
-    return Blocks;
+  void getBlocks(llvm::Loop &L,
+                 llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks) {
+    calculate(L, Blocks);
   }
 };
 

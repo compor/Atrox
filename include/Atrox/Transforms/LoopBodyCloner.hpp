@@ -33,14 +33,12 @@ class LoopBodyCloner {
 public:
   explicit LoopBodyCloner(llvm::Module &CurM) : TargetModule(&CurM) {}
 
-  template <typename T> bool cloneLoops(llvm::Function &F) {
-    llvm::LoopInfo LI{llvm::DominatorTree(const_cast<llvm::Function &>(F))};
+  template <typename T> bool cloneLoops(llvm::LoopInfo &LI, T &Selector) {
     bool hasChanged = false;
 
     for (auto &curLoop : LI) {
-      T selector{curLoop};
-
-      auto blocks = selector.getBlocks();
+      llvm::SmallVector<llvm::BasicBlock *, 32> blocks;
+      Selector.getBlocks(*curLoop, blocks);
 
       if (blocks.empty()) {
         LLVM_DEBUG(llvm::dbgs()

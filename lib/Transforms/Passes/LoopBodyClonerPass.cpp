@@ -105,7 +105,9 @@ bool LoopBodyClonerPass::run(llvm::Module &M) {
     }
 
     LoopBodyCloner lpc{M};
-    hasChanged |= lpc.cloneLoops<NaiveSelector>(func);
+    llvm::LoopInfo li{llvm::DominatorTree(const_cast<llvm::Function &>(func))};
+    NaiveSelector ns;
+    hasChanged |= lpc.cloneLoops(li, ns);
   }
 
   return hasChanged;
