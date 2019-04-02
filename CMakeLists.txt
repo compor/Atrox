@@ -142,10 +142,11 @@ endif()
 #
 
 set(LIB_SOURCES
-  "lib/Analysis/NaiveSelector.cpp"
-  "lib/Analysis/IteratorRecognitionSelector.cpp"
+  "lib/Debug.cpp"
   "lib/Passes/PassCommandLineOptions.cpp"
   "lib/Passes/RegisterPasses.cpp"
+  "lib/Analysis/NaiveSelector.cpp"
+  "lib/Analysis/IteratorRecognitionSelector.cpp"
   "lib/Transforms/Utils/CodeExtractor.cpp"
   "lib/Transforms/Passes/LoopBodyClonerPass.cpp"
   )
