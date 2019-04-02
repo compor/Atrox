@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib"
+
+FILENAME=${1}
+OUTPUT_FILENAME=${FILENAME%.*}-itr-annotate.bc
+
+opt \
+  -load ${LIB_DIR}/@PASS_SO_NAME@ \
+  -S \
+  -basicaa \
+  -globals-aa \
+  -scev-aa \
+  -tbaa \
+  -atrox-lbc-pass \
+  -o ${OUTPUT_FILENAME} \
+  ${FILENAME}
+
