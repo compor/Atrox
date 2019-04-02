@@ -6,8 +6,8 @@
 
 #include "Atrox/Config.hpp"
 
-#include <vector>
-// using std::vector
+#include "llvm/ADT/SmallVector.h"
+// usiing llvm::SmallVector
 
 #include <memory>
 // using std::unique_ptr
@@ -30,7 +30,7 @@ class IteratorRecognitionSelector {
   llvm::Function *CurFunc;
   llvm::LoopInfo *CurLI;
   llvm::MemoryDependenceResults *CurMD;
-  std::vector<llvm::BasicBlock *> Blocks;
+  llvm::SmallVector<llvm::BasicBlock *, 32> Blocks;
   std::unique_ptr<iteratorrecognition::IteratorRecognitionInfo> Info;
 
   void calculate(llvm::Loop &L);
@@ -39,7 +39,7 @@ public:
   IteratorRecognitionSelector(llvm::Function &Func, llvm::LoopInfo &LI,
                               llvm::MemoryDependenceResults *MD);
 
-  const std::vector<llvm::BasicBlock *> &getBlocks(llvm::Loop &L) {
+  const llvm::SmallVectorImpl<llvm::BasicBlock *> &getBlocks(llvm::Loop &L) {
     calculate(L);
 
     return Blocks;
