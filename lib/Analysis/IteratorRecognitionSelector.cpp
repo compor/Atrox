@@ -18,6 +18,8 @@
 
 #include "Pedigree/Support/Utils/InstIterator.hpp"
 
+#include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
+
 #include "llvm/Analysis/LoopInfo.h"
 // using llvm::LoopInfo
 // using llvm::Loop
@@ -27,6 +29,10 @@
 
 #include "llvm/IR/Function.h"
 // using llvm::Function
+
+// namespace aliases
+
+namespace itr = iteratorrecognition;
 
 namespace atrox {
 
@@ -53,6 +59,8 @@ IteratorRecognitionSelector::IteratorRecognitionSelector(
   auto pdgraph = builder.build();
 
   pdgraph->connectRootNode();
+
+  itr::IteratorRecognitionInfo itrInfo{LI, *pdgraph};
 }
 
 void IteratorRecognitionSelector::calculate(llvm::Loop &L) {}
