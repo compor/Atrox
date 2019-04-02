@@ -40,6 +40,9 @@
 // using LLVM_DEBUG macro
 // using llvm::dbgs
 
+#include <algorithm>
+// using std::find
+
 #define DEBUG_TYPE "atrox-selector-itr"
 
 namespace atrox {
@@ -78,6 +81,16 @@ void IteratorRecognitionSelector::calculate(llvm::Loop &L) {
                                                    RPOTraversal.end()};
   llvm::SmallSetVector<llvm::BasicBlock *, 16> selected;
 
+  auto infoOrError = Info->getIteratorInfoFor(&L);
+
+  if (!infoOrError) {
+    return;
+  }
+  auto &info = *infoOrError;
+  llvm::SmallVector<llvm::BasicBlock *, 8> payload;
+
+  iteratorrecognition::GetPayloadOnlyBlocks(info, payload);
+
   for (auto *bb : blocks) {
     if (selected.count(bb)) {
       continue;
@@ -86,26 +99,33 @@ void IteratorRecognitionSelector::calculate(llvm::Loop &L) {
     if (bb == L.getHeader()) {
       selected.insert(bb);
     } else if (CurLI->isLoopHeader(bb)) {
-      // and is all payload
+      auto *innerLoop = CurLI->getLoopFor(bb);
 
-      llvm::LoopBlocksRPO innerRPOTraversal(CurLI->getLoopFor(bb));
+      if (!iteratorrecognition::HasPayloadOnlyBlocks(info, *innerLoop)) {
+        break;
+      }
+
+      // and this inner loop is all payload
+
+      llvm::LoopBlocksRPO innerRPOTraversal(innerLoop);
       innerRPOTraversal.perform(CurLI);
 
       for (auto *e : innerRPOTraversal) {
         selected.insert(e);
       }
-    } else if (true) {
-      // if it is all payload
-      selected.insert(bb);
     } else {
-      // for now stop at the first sign of iterator
-      LLVM_DEBUG(llvm::dbgs() << "stopping at basic block: "
-                              << *bb->getTerminator() << '\n';);
-      break;
-    }
+      auto found = std::find(payload.begin(), payload.end(), bb);
+      if (found == payload.end()) {
+        break;
+      }
 
-    Blocks.append(selected.begin(), selected.end());
+      // and this block is only payload
+
+      selected.insert(bb);
+    }
   }
+
+  Blocks.append(selected.begin(), selected.end());
 }
 
 } // namespace atrox

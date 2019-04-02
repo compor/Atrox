@@ -40,6 +40,7 @@ public:
                               llvm::MemoryDependenceResults *MD);
 
   const llvm::SmallVectorImpl<llvm::BasicBlock *> &getBlocks(llvm::Loop &L) {
+    Blocks.clear();
     calculate(L);
 
     return Blocks;
