@@ -84,6 +84,9 @@ void IteratorRecognitionSelector::calculate(llvm::Loop &L) {
   auto infoOrError = Info->getIteratorInfoFor(&L);
 
   if (!infoOrError) {
+    LLVM_DEBUG(llvm::dbgs()
+                   << "No iterator information available for loop with header: "
+                   << *L.getHeader()->getTerminator() << '\n';);
     return;
   }
   auto &info = *infoOrError;
@@ -102,6 +105,9 @@ void IteratorRecognitionSelector::calculate(llvm::Loop &L) {
       auto *innerLoop = CurLI->getLoopFor(bb);
 
       if (!iteratorrecognition::HasPayloadOnlyBlocks(info, *innerLoop)) {
+        LLVM_DEBUG(llvm::dbgs()
+                       << "Mixed blocks in inner loop with header: "
+                       << *innerLoop->getHeader()->getTerminator() << '\n';);
         break;
       }
 
@@ -116,6 +122,8 @@ void IteratorRecognitionSelector::calculate(llvm::Loop &L) {
     } else {
       auto found = std::find(payload.begin(), payload.end(), bb);
       if (found == payload.end()) {
+        LLVM_DEBUG(llvm::dbgs() << "Mixed instructions in block: "
+                                << *bb->getTerminator() << '\n';);
         break;
       }
 
