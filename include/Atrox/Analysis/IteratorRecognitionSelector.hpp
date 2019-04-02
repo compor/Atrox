@@ -9,6 +9,9 @@
 #include <vector>
 // using std::vector
 
+#include <memory>
+// using std::unique_ptr
+
 namespace llvm {
 class Function;
 class BasicBlock;
@@ -17,6 +20,10 @@ class Loop;
 class MemoryDependenceResults;
 } // namespace llvm
 
+namespace iteratorrecognition {
+class IteratorRecognitionInfo;
+} // namespace iteratorrecognition
+
 namespace atrox {
 
 class IteratorRecognitionSelector {
@@ -24,6 +31,7 @@ class IteratorRecognitionSelector {
   llvm::LoopInfo *CurLI;
   llvm::MemoryDependenceResults *CurMD;
   std::vector<llvm::BasicBlock *> Blocks;
+  std::unique_ptr<iteratorrecognition::IteratorRecognitionInfo> Info;
 
   void calculate(llvm::Loop &L);
 

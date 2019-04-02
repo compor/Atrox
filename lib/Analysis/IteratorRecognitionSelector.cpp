@@ -30,10 +30,6 @@
 #include "llvm/IR/Function.h"
 // using llvm::Function
 
-// namespace aliases
-
-namespace itr = iteratorrecognition;
-
 namespace atrox {
 
 IteratorRecognitionSelector::IteratorRecognitionSelector(
@@ -60,7 +56,7 @@ IteratorRecognitionSelector::IteratorRecognitionSelector(
 
   pdgraph->connectRootNode();
 
-  itr::IteratorRecognitionInfo itrInfo{LI, *pdgraph};
+  Info = std::make_unique<decltype(Info)::element_type>(LI, *pdgraph);
 }
 
 void IteratorRecognitionSelector::calculate(llvm::Loop &L) {}
