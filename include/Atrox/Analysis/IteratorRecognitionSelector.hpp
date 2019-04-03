@@ -6,8 +6,10 @@
 
 #include "Atrox/Config.hpp"
 
+#include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
+
 #include "llvm/ADT/SmallVector.h"
-// usiing llvm::SmallVector
+// using llvm::SmallVector
 
 #include <memory>
 // using std::unique_ptr

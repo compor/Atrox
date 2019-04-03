@@ -18,8 +18,6 @@
 
 #include "Pedigree/Support/Utils/InstIterator.hpp"
 
-#include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
-
 #include "llvm/Analysis/LoopInfo.h"
 // using llvm::LoopInfo
 // using llvm::Loop
