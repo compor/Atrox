@@ -84,16 +84,16 @@ static llvm::RegisterStandardPasses RegisterLoopBodyClonerLegacyPass(
 
 enum class SelectionStrategy { Naive, IteratorRecognitionBased };
 
-static llvm::cl::bits<SelectionStrategy> SelectionStrategyOption(
+static llvm::cl::opt<SelectionStrategy> SelectionStrategyOption(
     "atrox-selection-strategy", llvm::cl::desc("block selection strategy"),
     llvm::cl::values(clEnumValN(SelectionStrategy::Naive, "naive", "naive"),
                      clEnumValN(SelectionStrategy::IteratorRecognitionBased,
                                 "itr", "iterator recognition based")),
-    llvm::cl::CommaSeparated, llvm::cl::cat(AtroxCLCategory));
+    llvm::cl::cat(AtroxCLCategory));
 
 static void checkAndSetCmdLineOptions() {
-  if (!SelectionStrategyOption.getBits()) {
-    SelectionStrategyOption.addValue(SelectionStrategy::Naive);
+  if (!SelectionStrategyOption.getPosition()) {
+    SelectionStrategyOption.setValue(SelectionStrategy::Naive);
   }
 }
 
