@@ -3,9 +3,11 @@
 LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib"
 
 FILENAME=${1}
-OUTPUT_FILENAME=${FILENAME%.*}-itr-annotate.bc
+OUTPUT_FILENAME=${FILENAME%.*}-atrox.ll
 
 opt \
+  -load @Pedigree_LOCATION@ \
+  -load @IteratorRecognition_LOCATION@ \
   -load ${LIB_DIR}/@PASS_SO_NAME@ \
   -S \
   -basicaa \
@@ -13,6 +15,8 @@ opt \
   -scev-aa \
   -tbaa \
   -atrox-lbc-pass \
+  -debug-only=atrox-loop-body-clone \
+  -debug-only=atrox-selector-itr \
   -o ${OUTPUT_FILENAME} \
   ${FILENAME}
 

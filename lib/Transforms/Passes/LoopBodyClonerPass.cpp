@@ -149,7 +149,6 @@ bool LoopBodyClonerPass::perform(
 
 llvm::PreservedAnalyses
 LoopBodyClonerPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
-
   auto &FAM =
       MAM.getResult<llvm::FunctionAnalysisManagerModuleProxy>(M).getManager();
 
