@@ -114,6 +114,10 @@ bool LoopBodyClonerPass::run(llvm::Module &M) {
   bool hasChanged = false;
 
   for (auto &func : M) {
+    if (func.isDeclaration()) {
+      continue;
+    }
+
     if (FunctionWhiteList.size()) {
       auto found = std::find(FunctionWhiteList.begin(), FunctionWhiteList.end(),
                              std::string{func.getName()});
