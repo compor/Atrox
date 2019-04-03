@@ -9,9 +9,15 @@
 #include "llvm/Pass.h"
 // using llvm::ModulePass
 
+#include "llvm/Analysis/MemoryDependenceAnalysis.h"
+// using llvm::MemoryDependenceResults
+
 #include "llvm/IR/PassManager.h"
 // using llvm::ModuleAnalysisManager
 // using llvm::PassInfoMixin
+
+#include <functional>
+// using std::function
 
 namespace llvm {
 class Module;
@@ -26,7 +32,10 @@ class LoopBodyClonerPass : public llvm::PassInfoMixin<LoopBodyClonerPass> {
 public:
   LoopBodyClonerPass();
 
-  bool run(llvm::Module &F);
+  bool perform(
+      llvm::Module &M,
+      std::function<llvm::MemoryDependenceResults &(llvm::Function &)> &GetMDR);
+
   llvm::PreservedAnalyses run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM);
 };

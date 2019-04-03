@@ -110,7 +110,9 @@ LoopBodyClonerPass::LoopBodyClonerPass() {
   checkAndSetCmdLineOptions();
 }
 
-bool LoopBodyClonerPass::run(llvm::Module &M) {
+bool LoopBodyClonerPass::perform(
+    llvm::Module &M,
+    std::function<llvm::MemoryDependenceResults &(llvm::Function &)> &GetMDR) {
   bool hasChanged = false;
 
   for (auto &func : M) {
@@ -138,7 +140,16 @@ bool LoopBodyClonerPass::run(llvm::Module &M) {
 
 llvm::PreservedAnalyses
 LoopBodyClonerPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
-  bool hasChanged = run(M);
+
+  auto &FAM =
+      MAM.getResult<llvm::FunctionAnalysisManagerModuleProxy>(M).getManager();
+
+  std::function<llvm::MemoryDependenceResults &(llvm::Function &)> GetMDR =
+      [&](llvm::Function &F) -> llvm::MemoryDependenceResults & {
+    return FAM.getResult<llvm::MemoryDependenceAnalysis>(F);
+  };
+
+  bool hasChanged = perform(M, GetMDR);
 
   return hasChanged ? llvm::PreservedAnalyses::all()
                     : llvm::PreservedAnalyses::none();
@@ -147,13 +158,19 @@ LoopBodyClonerPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
 // legacy passmanager pass
 
 void LoopBodyClonerLegacyPass::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+  AU.addRequired<llvm::MemoryDependenceWrapperPass>();
   AU.setPreservesAll();
 }
 
 bool LoopBodyClonerLegacyPass::runOnModule(llvm::Module &M) {
   LoopBodyClonerPass pass;
 
-  return pass.run(M);
+  std::function<llvm::MemoryDependenceResults &(llvm::Function &)> GetMDR =
+      [this](llvm::Function &F) -> llvm::MemoryDependenceResults & {
+    return this->getAnalysis<MemoryDependenceWrapperPass>(F).getMemDep();
+  };
+
+  return pass.perform(M, GetMDR);
 }
 
 } // namespace atrox
