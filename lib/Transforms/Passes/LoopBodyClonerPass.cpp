@@ -10,6 +10,8 @@
 
 #include "Atrox/Analysis/NaiveSelector.hpp"
 
+#include "Atrox/Analysis/IteratorRecognitionSelector.hpp"
+
 #include "Atrox/Transforms/Passes/LoopBodyClonerPass.hpp"
 
 #include "Atrox/Transforms/LoopBodyCloner.hpp"
@@ -131,8 +133,15 @@ bool LoopBodyClonerPass::perform(
 
     LoopBodyCloner lpc{M};
     llvm::LoopInfo li{llvm::DominatorTree(const_cast<llvm::Function &>(func))};
-    NaiveSelector ns;
-    hasChanged |= lpc.cloneLoops(li, ns);
+
+    if (SelectionStrategyOption ==
+        SelectionStrategy::IteratorRecognitionBased) {
+      IteratorRecognitionSelector s{func, li, &GetMDR(func)};
+      hasChanged |= lpc.cloneLoops(li, s);
+    } else {
+      NaiveSelector s;
+      hasChanged |= lpc.cloneLoops(li, s);
+    }
   }
 
   return hasChanged;
