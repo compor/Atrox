@@ -36,22 +36,30 @@ class LoopBodyCloner {
 public:
   explicit LoopBodyCloner(llvm::Module &CurM) : TargetModule(&CurM) {}
 
-  template <typename T> bool cloneLoops(llvm::LoopInfo &LI, T &Selector) {
+  template <typename T>
+  bool cloneLoop(llvm::Loop &L, llvm::LoopInfo &LI, T &Selector) {
     bool hasChanged = false;
 
-    for (auto &curLoop : LI) {
-      llvm::SmallVector<llvm::BasicBlock *, 32> blocks;
-      Selector.getBlocks(*curLoop, blocks);
+    llvm::SmallVector<llvm::BasicBlock *, 32> blocks;
+    Selector.getBlocks(L, blocks);
 
-      if (blocks.empty()) {
-        LLVM_DEBUG(llvm::dbgs()
-                   << "Skipping loop because no blocks were selected.\n");
-        continue;
-      }
-
+    if (!blocks.empty()) {
       atrox::CodeExtractor ce{blocks};
       auto *extractedFunc = ce.cloneCodeRegion();
       hasChanged |= extractedFunc ? true : false;
+    } else {
+      LLVM_DEBUG(llvm::dbgs()
+                 << "Skipping loop because no blocks were selected.\n");
+    }
+
+    return hasChanged;
+  }
+
+  template <typename T> bool cloneLoops(llvm::LoopInfo &LI, T &Selector) {
+    bool hasChanged = false;
+
+    for (auto *curLoop : LI) {
+      hasChanged |= cloneLoop(*curLoop, LI, Selector);
     }
 
     return hasChanged;
