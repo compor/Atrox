@@ -1436,6 +1436,7 @@ Function *CodeExtractor::cloneCodeRegion() {
     CloneBlocks.push_back(CloneBasicBlock(b, VMap, ".clone", oldFunction));
     VMap[b] = CloneBlocks.back();
   }
+  auto *cloneHeader = cast_or_null<llvm::BasicBlock>(VMap[header]);
 
   // Construct new function based on inputs/outputs & add allocas for all defs.
   Function *newFunction = cloneFunction(inputs, outputs, header, newFuncRoot,
@@ -1448,6 +1449,18 @@ Function *CodeExtractor::cloneCodeRegion() {
   // Propagate personality info to the new function if there is one.
   if (oldFunction->hasPersonalityFn())
     newFunction->setPersonalityFn(oldFunction->getPersonalityFn());
+
+  // Loop over all of the PHI nodes in the header block, and change any
+  // references to the old incoming edge to be the new incoming edge.
+  for (BasicBlock::iterator I = cloneHeader->begin(); isa<PHINode>(I); ++I) {
+    PHINode *PN = cast<PHINode>(I);
+    for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i) {
+      auto *b = PN->getIncomingBlock(i);
+      if (b->getParent() != newFunction) {
+        PN->setIncomingBlock(i, newFuncRoot);
+      }
+    }
+  }
 
   LLVM_DEBUG(if (VerifyOption && verifyFunction(*newFunction)) {
     newFunction->dump();
