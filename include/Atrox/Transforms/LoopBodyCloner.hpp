@@ -47,7 +47,8 @@ public:
       }
 
       atrox::CodeExtractor ce{blocks};
-      ce.cloneCodeRegion();
+      auto *extractedFunc = ce.cloneCodeRegion();
+      hasChanged |= extractedFunc ? true : false;
     }
 
     return hasChanged;
