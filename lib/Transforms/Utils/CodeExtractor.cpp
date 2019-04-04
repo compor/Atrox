@@ -82,6 +82,12 @@ static cl::opt<bool> AggregateArgsOpt(
     "atrox-aggregate-extracted-args", cl::Hidden,
     cl::desc("Aggregate arguments to code-extracted functions"));
 
+#if !defined(NDEBUG)
+static cl::opt<bool>
+    VerifyOption("atrox-verify", cl::Hidden, cl::init(true),
+                 cl::desc("Perform verification of code-extracted functions"));
+#endif // !defined(NDEBUG)
+
 /// Test whether a block is valid for extraction.
 static bool isBlockValidForExtraction(const BasicBlock &BB,
                                       const SetVector<BasicBlock *> &Result,
@@ -1443,7 +1449,7 @@ Function *CodeExtractor::cloneCodeRegion() {
   if (oldFunction->hasPersonalityFn())
     newFunction->setPersonalityFn(oldFunction->getPersonalityFn());
 
-  LLVM_DEBUG(if (verifyFunction(*newFunction)) {
+  LLVM_DEBUG(if (VerifyOption && verifyFunction(*newFunction)) {
     newFunction->dump();
     report_fatal_error("verifyFunction failed!");
   });
@@ -1623,5 +1629,6 @@ Function *CodeExtractor::extractCodeRegion() {
 
   LLVM_DEBUG(if (verifyFunction(*newFunction))
                  report_fatal_error("verifyFunction failed!"));
+
   return newFunction;
 }
