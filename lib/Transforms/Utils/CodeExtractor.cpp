@@ -903,7 +903,7 @@ Function *CodeExtractor::constructFunction(const ValueSet &inputs,
 
   // Create the new function
   Function *newFunction =
-      Function::Create(funcType, GlobalValue::InternalLinkage,
+      Function::Create(funcType, GlobalValue::ExternalLinkage,
                        oldFunction->getName() + "_" + header->getName(), M);
   // If the old function is no-throw, so is the new one.
   if (oldFunction->doesNotThrow())
