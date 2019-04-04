@@ -822,9 +822,8 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
   }
 
   // Set entry block successor to the clone blocks header
-  auto *cloneHeader = cast_or_null<llvm::BasicBlock>(VMap[header]);
   auto *term = dyn_cast<BranchInst>(newRootNode->getTerminator());
-  term->setSuccessor(0, cloneHeader);
+  term->setSuccessor(0, header);
 
   // Divert all exiting branches to the single exit block of the new function
   auto *exitBlock =
@@ -1439,8 +1438,9 @@ Function *CodeExtractor::cloneCodeRegion() {
   auto *cloneHeader = cast_or_null<llvm::BasicBlock>(VMap[header]);
 
   // Construct new function based on inputs/outputs & add allocas for all defs.
-  Function *newFunction = cloneFunction(inputs, outputs, header, newFuncRoot,
-                                        oldFunction, oldFunction->getParent());
+  Function *newFunction =
+      cloneFunction(inputs, outputs, cloneHeader, newFuncRoot, oldFunction,
+                    oldFunction->getParent());
 
   remapCloneBlocks();
 
