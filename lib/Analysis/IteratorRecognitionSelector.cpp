@@ -53,7 +53,7 @@ IteratorRecognitionSelector::IteratorRecognitionSelector(
 
   pedigree::CDGraphBuilder cdgBuilder{};
   auto cdgraph = cdgBuilder.setUnit(Func).build();
-  decltype(ddgraph) icdgraph;
+  auto icdgraph = std::make_unique<pedigree::InstCDGraph>();
   pedigree::Convert(*cdgraph, *icdgraph,
                     pedigree::BlockToTerminatorUnitConverter{},
                     pedigree::BlockToInstructionsUnitConverter{});
