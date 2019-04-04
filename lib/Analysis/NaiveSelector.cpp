@@ -7,6 +7,12 @@
 #include "llvm/Analysis/LoopInfo.h"
 // using llvm::Loop
 
+#include "llvm/Support/Debug.h"
+// using LLVM_DEBUG macro
+// using llvm::dbgs
+
+#define DEBUG_TYPE "atrox-selector"
+
 namespace atrox {
 
 void NaiveSelector::calculate(

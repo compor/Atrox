@@ -17,7 +17,7 @@ opt \
   -atrox-lbc-pass \
   -atrox-selection-strategy=itr \
   -debug-only=atrox-loop-body-clone \
-  -debug-only=atrox-selector-itr \
+  -debug-only=atrox-selector \
   -o ${OUTPUT_FILENAME} \
   ${FILENAME}
 

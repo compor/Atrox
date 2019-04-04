@@ -41,7 +41,7 @@
 #include <algorithm>
 // using std::find
 
-#define DEBUG_TYPE "atrox-selector-itr"
+#define DEBUG_TYPE "atrox-selector"
 
 namespace atrox {
 
