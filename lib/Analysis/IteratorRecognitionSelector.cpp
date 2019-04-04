@@ -91,7 +91,7 @@ void IteratorRecognitionSelector::calculate(
   auto &info = *infoOrError;
   llvm::SmallVector<llvm::BasicBlock *, 8> payload;
 
-  iteratorrecognition::GetPayloadOnlyBlocks(info, payload);
+  iteratorrecognition::GetPayloadOnlyBlocks(info, L, payload);
 
   for (auto *bb : blocks) {
     if (selected.count(bb)) {
