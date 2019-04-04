@@ -19,6 +19,9 @@
 // using llvm::LoopInfo
 // using llvm::Loop
 
+#include "llvm/ADT/SmallVector.h"
+// using llvm::SmallVector
+
 #include "llvm/Support/Debug.h"
 // using DEBUG macro
 // using llvm::dbgs

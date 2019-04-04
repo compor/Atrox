@@ -34,6 +34,9 @@
 // using llvm::PassManagerBuilder
 // using llvm::RegisterStandardPasses
 
+#include "llvm/ADT/SmallVector.h"
+// using llvm::SmallVector
+
 #include "llvm/Support/CommandLine.h"
 // using llvm::cl::opt
 // using llvm::cl::desc
@@ -117,6 +120,9 @@ bool LoopBodyClonerPass::perform(
     std::function<llvm::MemoryDependenceResults &(llvm::Function &)> &GetMDR) {
   bool hasChanged = false;
 
+  llvm::SmallVector<llvm::Function *, 32> workList;
+  workList.reserve(M.size());
+
   for (auto &func : M) {
     if (func.isDeclaration()) {
       continue;
@@ -130,6 +136,12 @@ bool LoopBodyClonerPass::perform(
         continue;
       }
     }
+
+    workList.push_back(&func);
+  }
+
+  while (!workList.empty()) {
+    auto &func = *workList.pop_back_val();
 
     LoopBodyCloner lpc{M};
     llvm::LoopInfo li{llvm::DominatorTree(const_cast<llvm::Function &>(func))};
