@@ -22,6 +22,9 @@
 #include "llvm/ADT/SmallVector.h"
 // using llvm::SmallVector
 
+#include "llvm/ADT/SetVector.h"
+// using llvm::SetVector
+
 #include "llvm/Support/Debug.h"
 // using DEBUG macro
 // using llvm::dbgs
@@ -45,6 +48,22 @@ public:
 
     if (!blocks.empty()) {
       atrox::CodeExtractor ce{blocks};
+
+#if !defined(NDEBUG)
+      llvm::SetVector<llvm::Value *> inputs, outputs, sinks;
+
+      ce.findInputsOutputs(inputs, outputs, sinks);
+
+      LLVM_DEBUG({
+        llvm::dbgs() << "inputs: " << inputs.size() << "\n";
+        llvm::dbgs() << "outputs: " << outputs.size() << "\n";
+        for (llvm::Value *value : inputs)
+          llvm::dbgs() << "    value used in func: " << *value << "\n";
+        for (llvm::Value *output : outputs)
+          llvm::dbgs() << "value used out of func: " << *output << "\n";
+      });
+#endif // !defined(NDEBUG)
+
       auto *extractedFunc = ce.cloneCodeRegion();
       hasChanged |= extractedFunc ? true : false;
     } else {
