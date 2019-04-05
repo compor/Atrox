@@ -93,6 +93,15 @@ void IteratorRecognitionSelector::calculate(
 
   iteratorrecognition::GetPayloadOnlyBlocks(info, L, payload);
 
+  blocks.erase(std::remove(blocks.begin(), blocks.end(), L.getHeader()),
+               blocks.end());
+
+  llvm::SmallVector<llvm::BasicBlock *, 8> latches;
+  L.getLoopLatches(latches);
+  for (auto *b : latches) {
+    blocks.erase(std::remove(blocks.begin(), blocks.end(), b), blocks.end());
+  }
+
   for (auto *bb : blocks) {
     if (selected.count(bb)) {
       continue;
