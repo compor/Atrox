@@ -89,9 +89,9 @@ void IteratorRecognitionSelector::calculate(
     return;
   }
   auto &info = *infoOrError;
-  llvm::SmallVector<llvm::BasicBlock *, 8> payload;
+  llvm::SmallVector<llvm::BasicBlock *, 8> payloadBlocks;
 
-  iteratorrecognition::GetPayloadOnlyBlocks(info, L, payload);
+  iteratorrecognition::GetPayloadOnlyBlocks(info, L, payloadBlocks);
 
   blocks.erase(std::remove(blocks.begin(), blocks.end(), L.getHeader()),
                blocks.end());
@@ -128,8 +128,8 @@ void IteratorRecognitionSelector::calculate(
         selected.insert(e);
       }
     } else {
-      auto found = std::find(payload.begin(), payload.end(), bb);
-      if (found == payload.end()) {
+      auto found = std::find(payloadBlocks.begin(), payloadBlocks.end(), bb);
+      if (found == payloadBlocks.end()) {
         LLVM_DEBUG(llvm::dbgs() << "Mixed instructions in block: "
                                 << *bb->getTerminator() << '\n';);
         break;
