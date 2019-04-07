@@ -55,6 +55,10 @@ using namespace llvm;
 /// 3) Add allocas for any scalar outputs, adding all of the outputs' allocas
 ///    as arguments, and inserting stores to the arguments for any scalars.
 class CodeExtractor {
+public:
+  using OutputToInputMapTy = ValueMap<Value *, Value *>;
+
+private:
   using ValueSet = SetVector<Value *>;
 
   // Various bits of state computed on construction.
@@ -67,6 +71,7 @@ class CodeExtractor {
   bool AllowVarArgs;
 
   ValueToValueMapTy VMap;
+  OutputToInputMapTy InputToOutputMap;
 
   // Bits of intermediate state computed at various phases of extraction.
   SetVector<BasicBlock *> Blocks;
@@ -122,6 +127,9 @@ public:
   /// significant impact on the cost however.
   void findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
                          const ValueSet &Allocas) const;
+
+  void mapInputsOutputs(const ValueSet &Inputs, ValueSet &Outputs,
+                        OutputToInputMapTy &Map) const;
 
   /// Check if life time marker nodes can be hoisted/sunk into the outline
   /// region.

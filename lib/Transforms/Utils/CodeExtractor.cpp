@@ -531,6 +531,25 @@ void CodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
   }
 }
 
+void CodeExtractor::mapInputsOutputs(const ValueSet &Inputs, ValueSet &Outputs,
+                                     OutputToInputMapTy &Map) const {
+  for (auto *v : Inputs) {
+    auto *phi = dyn_cast<PHINode>(v);
+    if (!phi) {
+      continue;
+    }
+
+    for (size_t i = 0; i < phi->getNumIncomingValues(); ++i) {
+      auto *incV = phi->getIncomingValue(i);
+      auto found = std::find(Outputs.begin(), Outputs.end(), incV);
+
+      if (found != Outputs.end()) {
+        Map[incV] = v;
+      }
+    }
+  }
+}
+
 /// severSplitPHINodes - If a PHI node has multiple inputs from outside of the
 /// region, we need to split the entry block of the region so that the PHI node
 /// is easier to deal with.
