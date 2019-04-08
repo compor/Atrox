@@ -678,8 +678,18 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
 
   std::vector<Type *> paramTy;
 
-  // Add the types of the input values to the function's argument list
+  ValueSet usedInputs;
   for (Value *value : inputs) {
+    if (isBidirectional(value)) {
+      LLVM_DEBUG(dbgs() << "skipping value used in func: " << *value << "\n");
+      continue;
+    }
+
+    usedInputs.insert(value);
+  }
+
+  // Add the types of the input values to the function's argument list
+  for (Value *value : usedInputs) {
     LLVM_DEBUG(dbgs() << "value used in func: " << *value << "\n");
     paramTy.push_back(value->getType());
   }
@@ -701,7 +711,7 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
   });
 
   StructType *StructTy;
-  if (AggregateArgs && (inputs.size() + outputs.size() > 0)) {
+  if (AggregateArgs && (usedInputs.size() + outputs.size() > 0)) {
     StructTy = StructType::get(M->getContext(), paramTy);
     paramTy.clear();
     paramTy.push_back(PointerType::getUnqual(StructTy));
@@ -811,7 +821,7 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
 
   // Rewrite all users of the inputs in the extracted region to use the
   // arguments (or appropriate addressing into struct) instead.
-  for (unsigned i = 0, e = inputs.size(); i != e; ++i) {
+  for (unsigned i = 0, e = usedInputs.size(); i != e; ++i) {
     Value *RewriteVal;
     if (AggregateArgs) {
       Value *Idx[2];
@@ -819,12 +829,13 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
       Idx[1] = ConstantInt::get(Type::getInt32Ty(header->getContext()), i);
       TerminatorInst *TI = newFunction->begin()->getTerminator();
       GetElementPtrInst *GEP = GetElementPtrInst::Create(
-          StructTy, &*AI, Idx, "gep_" + inputs[i]->getName(), TI);
-      RewriteVal = new LoadInst(GEP, "loadgep_" + inputs[i]->getName(), TI);
+          StructTy, &*AI, Idx, "gep_" + usedInputs[i]->getName(), TI);
+      RewriteVal = new LoadInst(GEP, "loadgep_" + usedInputs[i]->getName(), TI);
     } else
       RewriteVal = &*AI++;
 
-    std::vector<User *> Users(inputs[i]->user_begin(), inputs[i]->user_end());
+    std::vector<User *> Users(usedInputs[i]->user_begin(),
+                              usedInputs[i]->user_end());
     for (User *use : Users)
       if (Instruction *inst = dyn_cast<Instruction>(use)) {
         auto found = std::find(CloneBlocks.begin(), CloneBlocks.end(),
@@ -837,8 +848,8 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
   // Set names for input and output arguments.
   if (!AggregateArgs) {
     AI = newFunction->arg_begin();
-    for (unsigned i = 0, e = inputs.size(); i != e; ++i, ++AI)
-      AI->setName(inputs[i]->getName());
+    for (unsigned i = 0, e = usedInputs.size(); i != e; ++i, ++AI)
+      AI->setName(usedInputs[i]->getName());
     for (unsigned i = 0, e = outputs.size(); i != e; ++i, ++AI)
       AI->setName(outputs[i]->getName() + ".out");
   }
