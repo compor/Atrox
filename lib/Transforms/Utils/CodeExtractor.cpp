@@ -841,7 +841,30 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
         auto found = std::find(CloneBlocks.begin(), CloneBlocks.end(),
                                inst->getParent());
         if (found != CloneBlocks.end())
-          inst->replaceUsesOfWith(inputs[i], RewriteVal);
+          inst->replaceUsesOfWith(usedInputs[i], RewriteVal);
+      }
+  }
+
+  AI = newFunction->arg_begin() + usedInputs.size();
+
+  for (auto *v : inputs) {
+    if (!isBidirectional(v)) {
+      continue;
+    }
+
+    auto *outv = outputs[InputToOutputMap[v]];
+    auto argIt = AI + InputToOutputMap[v];
+    auto *ti = newFunction->begin()->getTerminator();
+
+    auto *ld = new LoadInst(&*argIt, "", ti);
+
+    std::vector<User *> Users(v->user_begin(), v->user_end());
+    for (User *use : Users)
+      if (Instruction *inst = dyn_cast<Instruction>(use)) {
+        auto found = std::find(CloneBlocks.begin(), CloneBlocks.end(),
+                               inst->getParent());
+        if (found != CloneBlocks.end())
+          inst->replaceUsesOfWith(v, ld);
       }
   }
 
