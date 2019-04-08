@@ -81,6 +81,15 @@ private:
   unsigned NumExitBlocks = std::numeric_limits<unsigned>::max();
   Type *RetTy;
 
+  bool isBidirectional(const llvm::Value *V) {
+    for (const auto &e : OutputToInputMap) {
+      if (e.first == V || e.second == V) {
+        return true;
+      }
+    }
+    return false;
+  }
+
 public:
   /// Create a code extractor for a sequence of blocks.
   ///
