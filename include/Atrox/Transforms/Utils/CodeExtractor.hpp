@@ -57,6 +57,7 @@ using namespace llvm;
 class CodeExtractor {
 public:
   using OutputToInputMapTy = ValueMap<Value *, Value *>;
+  using InputToOutputMapTy = ValueMap<Value *, size_t>;
 
 private:
   using ValueSet = SetVector<Value *>;
@@ -71,7 +72,8 @@ private:
   bool AllowVarArgs;
 
   ValueToValueMapTy VMap;
-  OutputToInputMapTy InputToOutputMap;
+  OutputToInputMapTy OutputToInputMap;
+  InputToOutputMapTy InputToOutputMap;
 
   // Bits of intermediate state computed at various phases of extraction.
   SetVector<BasicBlock *> Blocks;
@@ -128,8 +130,8 @@ public:
   void findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
                          const ValueSet &Allocas) const;
 
-  void mapInputsOutputs(const ValueSet &Inputs, ValueSet &Outputs,
-                        OutputToInputMapTy &Map) const;
+  void mapInputsOutputs(const ValueSet &Inputs, const ValueSet &Outputs,
+                        InputToOutputMapTy &IOMap, OutputToInputMapTy &OIMap);
 
   /// Check if life time marker nodes can be hoisted/sunk into the outline
   /// region.

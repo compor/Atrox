@@ -531,8 +531,10 @@ void CodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
   }
 }
 
-void CodeExtractor::mapInputsOutputs(const ValueSet &Inputs, ValueSet &Outputs,
-                                     OutputToInputMapTy &Map) const {
+void CodeExtractor::mapInputsOutputs(const ValueSet &Inputs,
+                                     const ValueSet &Outputs,
+                                     InputToOutputMapTy &IOMap,
+                                     OutputToInputMapTy &OIMap) {
   for (auto *v : Inputs) {
     auto *phi = dyn_cast<PHINode>(v);
     if (!phi) {
@@ -544,7 +546,8 @@ void CodeExtractor::mapInputsOutputs(const ValueSet &Inputs, ValueSet &Outputs,
       auto found = std::find(Outputs.begin(), Outputs.end(), incV);
 
       if (found != Outputs.end()) {
-        Map[incV] = v;
+        IOMap[v] = std::distance(Outputs.begin(), found);
+        OIMap[incV] = v;
       }
     }
   }
@@ -1455,6 +1458,8 @@ Function *CodeExtractor::cloneCodeRegion() {
     VMap[b] = CloneBlocks.back();
   }
   auto *cloneHeader = cast_or_null<llvm::BasicBlock>(VMap[header]);
+
+  mapInputsOutputs(inputs, outputs, InputToOutputMap, OutputToInputMap);
 
   // Construct new function based on inputs/outputs & add allocas for all defs.
   Function *newFunction =

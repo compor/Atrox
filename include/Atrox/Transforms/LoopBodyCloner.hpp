@@ -63,16 +63,23 @@ public:
           llvm::dbgs() << "value used out of func: " << *output << "\n";
       });
 
-      CodeExtractor::OutputToInputMapTy inoutMap;
-      ce.mapInputsOutputs(inputs, outputs, inoutMap);
+      CodeExtractor::InputToOutputMapTy ioMap;
+      CodeExtractor::OutputToInputMapTy oiMap;
+      ce.mapInputsOutputs(inputs, outputs, ioMap, oiMap);
 
-      for (const auto &e : inoutMap) {
+      for (const auto &e : ioMap) {
         LLVM_DEBUG({
-          llvm::dbgs() << "in: " << *e.second << " -> out: " << *e.first
+          llvm::dbgs() << "in: " << *e.first << " -> out: " << e.second
                        << "\n";
         });
       }
 
+      for (const auto &e : oiMap) {
+        LLVM_DEBUG({
+          llvm::dbgs() << "out: " << *e.first << " -> in: " << *e.second
+                       << "\n";
+        });
+      }
 #endif // !defined(NDEBUG)
 
       auto *extractedFunc = ce.cloneCodeRegion();
