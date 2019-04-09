@@ -142,6 +142,10 @@ public:
   void mapInputsOutputs(const ValueSet &Inputs, const ValueSet &Outputs,
                         InputToOutputMapTy &IOMap, OutputToInputMapTy &OIMap);
 
+  void generateArgDirection(const ValueSet &Inputs, const ValueSet &Outputs,
+                            const InputToOutputMapTy &IOMap,
+                            const OutputToInputMapTy &OIMap);
+
   /// Check if life time marker nodes can be hoisted/sunk into the outline
   /// region.
   ///

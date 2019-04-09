@@ -16,6 +16,8 @@
 #include "Atrox/Transforms/Utils/CodeExtractor.hpp"
 //#include "llvm/Transforms/Utils/CodeExtractor.h"
 
+#include "Atrox/Support/IR/ArgDirection.hpp"
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/Optional.h"
@@ -551,6 +553,31 @@ void CodeExtractor::mapInputsOutputs(const ValueSet &Inputs,
       }
     }
   }
+}
+
+void CodeExtractor::generateArgDirection(const ValueSet &Inputs,
+                                         const ValueSet &Outputs,
+                                         const InputToOutputMapTy &IOMap,
+                                         const OutputToInputMapTy &OIMap) {
+  SmallVector<ArgDirection, 8> argDirs;
+  argDirs.reserve(Inputs.size() + Outputs.size());
+
+  for (auto *v : Inputs) {
+    if (!isBidirectional(v)) {
+      argDirs.push_back(ArgDirection::AD_Inbound);
+    }
+  }
+
+  for (auto *v : Outputs) {
+    argDirs.push_back(isBidirectional(v) ? ArgDirection::AD_Both
+                                         : ArgDirection::AD_Outbound);
+  }
+
+#if !defined(NDEBUG)
+  for (size_t i = 0; i < argDirs.size(); ++i) {
+    LLVM_DEBUG(llvm::dbgs() << "arg " << i << ": " << static_cast<int>(argDirs[i]) << '\n';);
+  }
+#endif // !defined(NDEBUG)
 }
 
 /// severSplitPHINodes - If a PHI node has multiple inputs from outside of the
