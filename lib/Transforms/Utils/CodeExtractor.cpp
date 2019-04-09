@@ -896,6 +896,20 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
     }
   }
 
+  AI = newFunction->arg_begin() + usedInputs.size();
+
+  for (auto *v : inputs) {
+    if (!isBidirectional(v)) {
+      continue;
+    }
+
+    auto *outv = outputs[InputToOutputMap[v]];
+    auto argIt = AI + InputToOutputMap[v];
+    auto *ti = newExitNode->getTerminator();
+
+    auto *st = new StoreInst(outv, &*argIt, false, ti);
+  }
+
   return newFunction;
 }
 
@@ -1501,6 +1515,15 @@ Function *CodeExtractor::cloneCodeRegion() {
   Function *newFunction =
       cloneFunction(inputs, outputs, cloneHeader, newFuncRoot, newFuncExit,
                     oldFunction, oldFunction->getParent());
+
+  for (auto &inst : *newFuncExit) {
+    if (inst.isTerminator()) {
+      break;
+    }
+
+    RemapInstruction(&inst, VMap,
+                     RF_NoModuleLevelChanges | RF_IgnoreMissingLocals);
+  }
 
   remapCloneBlocks();
 
