@@ -16,6 +16,8 @@
 
 #include "Atrox/Transforms/LoopBodyCloner.hpp"
 
+#include "Atrox/Transforms/BlockSeparator.hpp"
+
 #include "private/PassCommandLineOptions.hpp"
 
 #include "private/PDGUtils.hpp"
@@ -100,6 +102,11 @@ static llvm::cl::opt<SelectionStrategy> SelectionStrategyOption(
                                 "itr", "iterator recognition based")),
     llvm::cl::cat(AtroxCLCategory));
 
+static llvm::cl::opt<bool> SeparateBlocksOption(
+    "atrox-separate-blocks",
+    llvm::cl::desc("separate blocks based on iterator recognition"),
+    llvm::cl::init(true), llvm::cl::Hidden, llvm::cl::cat(AtroxCLCategory));
+
 static void checkAndSetCmdLineOptions() {
   if (!SelectionStrategyOption.getPosition()) {
     SelectionStrategyOption.setValue(SelectionStrategy::Naive);
@@ -151,14 +158,40 @@ bool LoopBodyClonerPass::perform(
 
     // TODO consider obtaining these from pass manager and
     // preserving/invalidating them appropriately
-    llvm::LoopInfo li{llvm::DominatorTree(const_cast<llvm::Function &>(func))};
+    auto dt = llvm::DominatorTree(const_cast<llvm::Function &>(func));
+    llvm::LoopInfo li{dt};
 
-    auto info = BuildITRInfo(li, *BuildPDG(func, &GetMDR(func)));
+    auto itrInfo = BuildITRInfo(li, *BuildPDG(func, &GetMDR(func)));
+
+    // TODO CAUTION
+    // this does not update the iterator info with the unconf branch instruction
+    // that might be added by block splitting
+    if (SeparateBlocksOption) {
+      for (auto *curLoop : li) {
+        BlockModeChangePointMapTy modeChanges;
+        BlockModeMapTy blockModes;
+
+        auto infoOrError = itrInfo->getIteratorInfoFor(curLoop);
+
+        if (!infoOrError) {
+          continue;
+        }
+        auto &info = *infoOrError;
+
+        bool found =
+            FindPartitionPoints(*curLoop, info, blockModes, modeChanges);
+
+        if (found) {
+          SplitAtPartitionPoints(modeChanges, blockModes, &dt, &li);
+          hasChanged |= true;
+        }
+      }
+    }
 
     if (SelectionStrategyOption ==
         SelectionStrategy::IteratorRecognitionBased) {
       // IteratorRecognitionSelector s{func, li, &GetMDR(func)};
-      IteratorRecognitionSelector s{std::move(info)};
+      IteratorRecognitionSelector s{std::move(itrInfo)};
       hasChanged |= lpc.cloneLoops(li, s);
     } else {
       NaiveSelector s;
