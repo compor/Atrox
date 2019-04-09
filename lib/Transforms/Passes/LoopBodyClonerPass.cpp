@@ -18,6 +18,10 @@
 
 #include "private/PassCommandLineOptions.hpp"
 
+#include "private/PDGUtils.hpp"
+
+#include "private/ITRUtils.hpp"
+
 #include "llvm/Pass.h"
 // using llvm::RegisterPass
 
@@ -144,11 +148,17 @@ bool LoopBodyClonerPass::perform(
     auto &func = *workList.pop_back_val();
 
     LoopBodyCloner lpc{M};
+
+    // TODO consider obtaining these from pass manager and
+    // preserving/invalidating them appropriately
     llvm::LoopInfo li{llvm::DominatorTree(const_cast<llvm::Function &>(func))};
+
+    auto info = BuildITRInfo(li, *BuildPDG(func, &GetMDR(func)));
 
     if (SelectionStrategyOption ==
         SelectionStrategy::IteratorRecognitionBased) {
-      IteratorRecognitionSelector s{func, li, &GetMDR(func)};
+      // IteratorRecognitionSelector s{func, li, &GetMDR(func)};
+      IteratorRecognitionSelector s{std::move(info)};
       hasChanged |= lpc.cloneLoops(li, s);
     } else {
       NaiveSelector s;
