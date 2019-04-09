@@ -148,6 +148,7 @@ set(LIB_SOURCES
   "lib/Analysis/NaiveSelector.cpp"
   "lib/Analysis/IteratorRecognitionSelector.cpp"
   "lib/Transforms/Utils/CodeExtractor.cpp"
+  "lib/Analysis/Utils/PDGUtils.cpp"
   "lib/Transforms/Passes/LoopBodyClonerPass.cpp"
   )
 

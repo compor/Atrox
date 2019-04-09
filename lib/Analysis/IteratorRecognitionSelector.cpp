@@ -4,19 +4,7 @@
 
 #include "Atrox/Analysis/IteratorRecognitionSelector.hpp"
 
-#include "Pedigree/Analysis/Creational/DDGraphBuilder.hpp"
-
-#include "Pedigree/Analysis/Creational/CDGraphBuilder.hpp"
-
-#include "Pedigree/Analysis/Creational/MDAMDGraphBuilder.hpp"
-
-#include "Pedigree/Analysis/Creational/PDGraphBuilder.hpp"
-
-#include "Pedigree/Support/GraphConverter.hpp"
-
-#include "Pedigree/Support/Utils/UnitConverters.hpp"
-
-#include "Pedigree/Support/Utils/InstIterator.hpp"
+#include "private/PDGUtils.hpp"
 
 #include "llvm/Analysis/LoopInfo.h"
 // using llvm::LoopInfo
@@ -48,26 +36,7 @@ namespace atrox {
 IteratorRecognitionSelector::IteratorRecognitionSelector(
     llvm::Function &Func, llvm::LoopInfo &LI, llvm::MemoryDependenceResults *MD)
     : CurFunc(&Func), CurLI(&LI), CurMD(MD) {
-  pedigree::DDGraphBuilder ddgBuilder{};
-  auto ddgraph = ddgBuilder.setUnit(Func).ignoreConstantPHINodes(true).build();
-
-  pedigree::CDGraphBuilder cdgBuilder{};
-  auto cdgraph = cdgBuilder.setUnit(Func).build();
-  auto icdgraph = std::make_unique<pedigree::InstCDGraph>();
-  pedigree::Convert(*cdgraph, *icdgraph,
-                    pedigree::BlockToTerminatorUnitConverter{},
-                    pedigree::BlockToInstructionsUnitConverter{});
-
-  pedigree::MDAMDGraphBuilder mdgBuilder{};
-  auto mdgraph = mdgBuilder.setAnalysis(*CurMD).build(
-      pedigree::make_inst_begin(Func), pedigree::make_inst_end(Func));
-
-  pedigree::PDGraphBuilder builder{};
-
-  builder.addGraph(*ddgraph).addGraph(*icdgraph).addGraph(*mdgraph);
-  auto pdgraph = builder.build();
-
-  pdgraph->connectRootNode();
+  auto pdgraph = BuildPDG(*CurFunc, CurMD);
 
   Info = std::make_unique<decltype(Info)::element_type>(LI, *pdgraph);
 }
