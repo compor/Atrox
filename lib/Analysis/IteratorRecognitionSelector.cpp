@@ -6,6 +6,8 @@
 
 #include "private/PDGUtils.hpp"
 
+#include "private/ITRUtils.hpp"
+
 #include "llvm/Analysis/LoopInfo.h"
 // using llvm::LoopInfo
 // using llvm::Loop
@@ -37,8 +39,7 @@ IteratorRecognitionSelector::IteratorRecognitionSelector(
     llvm::Function &Func, llvm::LoopInfo &LI, llvm::MemoryDependenceResults *MD)
     : CurLI(&LI) {
   auto pdgraph = BuildPDG(Func, MD);
-
-  Info = std::make_unique<decltype(Info)::element_type>(LI, *pdgraph);
+  Info = BuildITRInfo(LI, *pdgraph);
 }
 
 IteratorRecognitionSelector::IteratorRecognitionSelector(
