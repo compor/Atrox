@@ -180,7 +180,8 @@ private:
 
   Function *cloneFunction(const ValueSet &inputs, const ValueSet &outputs,
                           BasicBlock *header, BasicBlock *newRootNode,
-                          Function *oldFunction, Module *M);
+                          BasicBlock *newExitNode, Function *oldFunction,
+                          Module *M);
 
   void remapCloneBlocks();
 

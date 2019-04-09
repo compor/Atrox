@@ -658,6 +658,7 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
                                        const ValueSet &outputs,
                                        BasicBlock *header,
                                        BasicBlock *newRootNode,
+                                       BasicBlock *newExitNode,
                                        Function *oldFunction, Module *M) {
   LLVM_DEBUG(dbgs() << "inputs: " << inputs.size() << "\n");
   LLVM_DEBUG(dbgs() << "outputs: " << outputs.size() << "\n");
@@ -882,16 +883,15 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
   term->setSuccessor(0, header);
 
   // Divert all exiting branches to the single exit block of the new function
-  auto *exitBlock =
-      BasicBlock::Create(newFunction->getContext(), "exit", newFunction);
-  auto *ret = ReturnInst::Create(newFunction->getContext(), exitBlock);
+  newFunction->getBasicBlockList().push_back(newExitNode);
+  auto *ret = ReturnInst::Create(newFunction->getContext(), newExitNode);
 
   for (auto *e : CloneBlocks) {
     auto *term = e->getTerminator();
 
     for (size_t i = 0; i < term->getNumSuccessors(); ++i) {
       if (!Blocks.count(term->getSuccessor(i))) {
-        term->setSuccessor(i, exitBlock);
+        term->setSuccessor(i, newExitNode);
       }
     }
   }
@@ -1495,10 +1495,12 @@ Function *CodeExtractor::cloneCodeRegion() {
 
   mapInputsOutputs(inputs, outputs, InputToOutputMap, OutputToInputMap);
 
+  auto *newFuncExit = BasicBlock::Create(header->getContext(), "exit");
+
   // Construct new function based on inputs/outputs & add allocas for all defs.
   Function *newFunction =
-      cloneFunction(inputs, outputs, cloneHeader, newFuncRoot, oldFunction,
-                    oldFunction->getParent());
+      cloneFunction(inputs, outputs, cloneHeader, newFuncRoot, newFuncExit,
+                    oldFunction, oldFunction->getParent());
 
   remapCloneBlocks();
 
