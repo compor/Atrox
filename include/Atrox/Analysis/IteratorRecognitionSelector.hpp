@@ -29,7 +29,6 @@ class IteratorRecognitionInfo;
 namespace atrox {
 
 class IteratorRecognitionSelector {
-  llvm::Function *CurFunc;
   llvm::LoopInfo *CurLI;
   std::unique_ptr<iteratorrecognition::IteratorRecognitionInfo> Info;
 
@@ -39,6 +38,9 @@ class IteratorRecognitionSelector {
 public:
   IteratorRecognitionSelector(llvm::Function &Func, llvm::LoopInfo &LI,
                               llvm::MemoryDependenceResults *MD);
+
+  explicit IteratorRecognitionSelector(
+      std::unique_ptr<iteratorrecognition::IteratorRecognitionInfo> ITRInfo);
 
   void getBlocks(llvm::Loop &L,
                  llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks) {

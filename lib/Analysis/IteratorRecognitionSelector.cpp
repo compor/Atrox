@@ -35,11 +35,16 @@ namespace atrox {
 
 IteratorRecognitionSelector::IteratorRecognitionSelector(
     llvm::Function &Func, llvm::LoopInfo &LI, llvm::MemoryDependenceResults *MD)
-    : CurFunc(&Func), CurLI(&LI) {
-  auto pdgraph = BuildPDG(*CurFunc, MD);
+    : CurLI(&LI) {
+  auto pdgraph = BuildPDG(Func, MD);
 
   Info = std::make_unique<decltype(Info)::element_type>(LI, *pdgraph);
 }
+
+IteratorRecognitionSelector::IteratorRecognitionSelector(
+    std::unique_ptr<iteratorrecognition::IteratorRecognitionInfo> ITRInfo)
+    : CurLI(const_cast<llvm::LoopInfo *>(&ITRInfo->getLoopInfo())),
+      Info(std::move(ITRInfo)) {}
 
 void IteratorRecognitionSelector::calculate(
     llvm::Loop &L, llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks) {
