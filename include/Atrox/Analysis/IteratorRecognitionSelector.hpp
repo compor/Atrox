@@ -31,7 +31,6 @@ namespace atrox {
 class IteratorRecognitionSelector {
   llvm::Function *CurFunc;
   llvm::LoopInfo *CurLI;
-  llvm::MemoryDependenceResults *CurMD;
   std::unique_ptr<iteratorrecognition::IteratorRecognitionInfo> Info;
 
   void calculate(llvm::Loop &L,

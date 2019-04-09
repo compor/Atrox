@@ -35,8 +35,8 @@ namespace atrox {
 
 IteratorRecognitionSelector::IteratorRecognitionSelector(
     llvm::Function &Func, llvm::LoopInfo &LI, llvm::MemoryDependenceResults *MD)
-    : CurFunc(&Func), CurLI(&LI), CurMD(MD) {
-  auto pdgraph = BuildPDG(*CurFunc, CurMD);
+    : CurFunc(&Func), CurLI(&LI) {
+  auto pdgraph = BuildPDG(*CurFunc, MD);
 
   Info = std::make_unique<decltype(Info)::element_type>(LI, *pdgraph);
 }
