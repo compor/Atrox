@@ -10,11 +10,19 @@
 namespace llvm {
 namespace json {
 
-Value toJSON(const atrox::ArgSpec &AS) {
+Value toJSON(ArrayRef<atrox::ArgSpec> ArgSpecs) {
   Object root;
+  Array specs;
 
-  root["direction"] = toInt(AS.Direction);
-  root["iterator dependent"] = AS.IteratorDependent;
+  for (const auto &s : ArgSpecs) {
+    Object item;
+    item["direction"] = toInt(s.Direction);
+    item["iterator dependent"] = s.IteratorDependent;
+
+    specs.push_back(std::move(item));
+  }
+
+  root["argspecs"] = std::move(specs);
 
   return std::move(root);
 }
