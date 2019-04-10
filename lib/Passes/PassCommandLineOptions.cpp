@@ -16,7 +16,11 @@
 // using std::string
 
 llvm::cl::OptionCategory AtroxCLCategory("Atrox Pass",
-                                             "Options for Atrox pass");
+                                         "Options for Atrox pass");
+
+llvm::cl::opt<std::string>
+    ReportsDir("atrox-reports-dir", llvm::cl::desc("output reports directory"),
+               llvm::cl::cat(AtroxCLCategory));
 
 llvm::cl::list<std::string>
     FunctionWhiteList("atrox-func-wl", llvm::cl::Hidden,

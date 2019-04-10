@@ -107,6 +107,10 @@ static llvm::cl::opt<bool> SeparateBlocksOption(
     llvm::cl::desc("separate blocks based on iterator recognition"),
     llvm::cl::init(true), llvm::cl::Hidden, llvm::cl::cat(AtroxCLCategory));
 
+static llvm::cl::opt<bool> ExportResults("atrox-export-results",
+                                         llvm::cl::desc("export results"),
+                                         llvm::cl::cat(AtroxCLCategory));
+
 static void checkAndSetCmdLineOptions() {
   if (!SelectionStrategyOption.getPosition()) {
     SelectionStrategyOption.setValue(SelectionStrategy::Naive);
