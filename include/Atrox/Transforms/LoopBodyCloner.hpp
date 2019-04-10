@@ -6,6 +6,8 @@
 
 #include "Atrox/Transforms/Utils/CodeExtractor.hpp"
 
+#include "Atrox/Support/IR/ArgSpec.hpp"
+
 #include "llvm/IR/Module.h"
 // using llvm::Module
 
@@ -25,6 +27,9 @@
 #include "llvm/ADT/SetVector.h"
 // using llvm::SetVector
 
+#include "llvm/ADT/DenseMap.h"
+// using llvm::DenseMap
+
 #include "llvm/Support/Debug.h"
 // using DEBUG macro
 // using llvm::dbgs
@@ -35,9 +40,12 @@ namespace atrox {
 
 class LoopBodyCloner {
   llvm::Module *TargetModule;
+  bool StoreInfo;
+  llvm::DenseMap<llvm::Function *, llvm::SmallVector<ArgSpec, 8>> CloneInfo;
 
 public:
-  explicit LoopBodyCloner(llvm::Module &CurM) : TargetModule(&CurM) {}
+  explicit LoopBodyCloner(llvm::Module &CurM, bool ShouldStoreInfo = false)
+      : TargetModule(&CurM), StoreInfo(ShouldStoreInfo) {}
 
   template <typename T>
   bool cloneLoop(llvm::Loop &L, llvm::LoopInfo &LI, T &Selector) {
@@ -85,6 +93,14 @@ public:
 
       auto *extractedFunc = ce.cloneCodeRegion();
       hasChanged |= extractedFunc ? true : false;
+
+      if (StoreInfo) {
+        decltype(CloneInfo)::mapped_type s;
+        for (auto &e : argDirs) {
+          s.push_back({e, false});
+        }
+        CloneInfo[extractedFunc] = s;
+      }
     } else {
       LLVM_DEBUG(llvm::dbgs()
                  << "Skipping loop because no blocks were selected.\n");
