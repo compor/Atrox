@@ -150,6 +150,7 @@ set(LIB_SOURCES
   "lib/Transforms/Utils/CodeExtractor.cpp"
   "lib/Analysis/Utils/PDGUtils.cpp"
   "lib/Analysis/Utils/ITRUtils.cpp"
+  "lib/Exchange/JSONTransfer.cpp"
   "lib/Transforms/BlockSeparator.cpp"
   "lib/Transforms/Passes/LoopBodyClonerPass.cpp"
   )
