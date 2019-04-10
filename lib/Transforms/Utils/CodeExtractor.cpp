@@ -567,12 +567,12 @@ void CodeExtractor::generateArgDirection(
                                                 : ArgDirection::AD_Outbound);
   }
 
-#if !defined(NDEBUG)
-  for (size_t i = 0; i < ArgDirs.size(); ++i) {
-    LLVM_DEBUG(llvm::dbgs() << "arg " << i << ": "
-                            << static_cast<int>(ArgDirs[i]) << '\n';);
-  }
-#endif // !defined(NDEBUG)
+  LLVM_DEBUG({
+    for (size_t i = 0; i < ArgDirs.size(); ++i) {
+      llvm::dbgs() << "arg " << i << ": " << static_cast<int>(ArgDirs[i])
+                   << '\n';
+    }
+  });
 }
 
 void CodeExtractor::generateArgDirection(
