@@ -81,13 +81,17 @@ private:
   unsigned NumExitBlocks = std::numeric_limits<unsigned>::max();
   Type *RetTy;
 
-  bool isBidirectional(const llvm::Value *V) {
-    for (const auto &e : OutputToInputMap) {
+  bool isBidirectional(const llvm::Value *V, const OutputToInputMapTy &OIMap) {
+    for (const auto &e : OIMap) {
       if (e.first == V || e.second == V) {
         return true;
       }
     }
     return false;
+  }
+
+  bool isBidirectional(const llvm::Value *V) {
+    return isBidirectional(V, OutputToInputMap);
   }
 
 public:
@@ -143,8 +147,9 @@ public:
                         InputToOutputMapTy &IOMap, OutputToInputMapTy &OIMap);
 
   void generateArgDirection(const ValueSet &Inputs, const ValueSet &Outputs,
-                            const InputToOutputMapTy &IOMap,
                             const OutputToInputMapTy &OIMap);
+
+  void generateArgDirection(const ValueSet &Inputs, const ValueSet &Outputs);
 
   /// Check if life time marker nodes can be hoisted/sunk into the outline
   /// region.

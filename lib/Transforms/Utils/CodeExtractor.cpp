@@ -557,27 +557,32 @@ void CodeExtractor::mapInputsOutputs(const ValueSet &Inputs,
 
 void CodeExtractor::generateArgDirection(const ValueSet &Inputs,
                                          const ValueSet &Outputs,
-                                         const InputToOutputMapTy &IOMap,
                                          const OutputToInputMapTy &OIMap) {
   SmallVector<ArgDirection, 8> argDirs;
   argDirs.reserve(Inputs.size() + Outputs.size());
 
   for (auto *v : Inputs) {
-    if (!isBidirectional(v)) {
+    if (!isBidirectional(v, OIMap)) {
       argDirs.push_back(ArgDirection::AD_Inbound);
     }
   }
 
   for (auto *v : Outputs) {
-    argDirs.push_back(isBidirectional(v) ? ArgDirection::AD_Both
-                                         : ArgDirection::AD_Outbound);
+    argDirs.push_back(isBidirectional(v, OIMap) ? ArgDirection::AD_Both
+                                                : ArgDirection::AD_Outbound);
   }
 
 #if !defined(NDEBUG)
   for (size_t i = 0; i < argDirs.size(); ++i) {
-    LLVM_DEBUG(llvm::dbgs() << "arg " << i << ": " << static_cast<int>(argDirs[i]) << '\n';);
+    LLVM_DEBUG(llvm::dbgs() << "arg " << i << ": "
+                            << static_cast<int>(argDirs[i]) << '\n';);
   }
 #endif // !defined(NDEBUG)
+}
+
+void CodeExtractor::generateArgDirection(const ValueSet &Inputs,
+                                         const ValueSet &Outputs) {
+  generateArgDirection(Inputs, Outputs, OutputToInputMap);
 }
 
 /// severSplitPHINodes - If a PHI node has multiple inputs from outside of the
