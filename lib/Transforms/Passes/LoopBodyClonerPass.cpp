@@ -18,6 +18,9 @@
 
 #include "Atrox/Transforms/BlockSeparator.hpp"
 
+// TODO this is a hack and needs to be removed
+#include "IteratorRecognition/Support/FileSystem.hpp"
+
 #include "private/PassCommandLineOptions.hpp"
 
 #include "private/PDGUtils.hpp"
@@ -155,10 +158,21 @@ bool LoopBodyClonerPass::perform(
     workList.push_back(&func);
   }
 
+  if (ExportResults) {
+    auto dirOrErr = iteratorrecognition::CreateDirectory(ReportsDir);
+    if (std::error_code ec = dirOrErr.getError()) {
+      llvm::errs() << "Error: " << ec.message() << '\n';
+      llvm::report_fatal_error("Failed to create reports directory" +
+                               ReportsDir);
+    }
+
+    ReportsDir = dirOrErr.get();
+  }
+
   while (!workList.empty()) {
     auto &func = *workList.pop_back_val();
 
-    LoopBodyCloner lpc{M};
+    LoopBodyCloner lpc{M, ExportResults};
 
     // TODO consider obtaining these from pass manager and
     // preserving/invalidating them appropriately
