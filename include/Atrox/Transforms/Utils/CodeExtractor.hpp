@@ -15,8 +15,11 @@
 #ifndef LLVM_TRANSFORMS_UTILS_CODEEXTRACTOR_H
 #define LLVM_TRANSFORMS_UTILS_CODEEXTRACTOR_H
 
+#include "Atrox/Support/IR/ArgDirection.hpp"
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include <limits>
@@ -147,9 +150,11 @@ public:
                         InputToOutputMapTy &IOMap, OutputToInputMapTy &OIMap);
 
   void generateArgDirection(const ValueSet &Inputs, const ValueSet &Outputs,
-                            const OutputToInputMapTy &OIMap);
+                            const OutputToInputMapTy &OIMap,
+                            SmallVectorImpl<ArgDirection> &ArgDirs);
 
-  void generateArgDirection(const ValueSet &Inputs, const ValueSet &Outputs);
+  void generateArgDirection(const ValueSet &Inputs, const ValueSet &Outputs,
+                            SmallVectorImpl<ArgDirection> &ArgDirs);
 
   /// Check if life time marker nodes can be hoisted/sunk into the outline
   /// region.

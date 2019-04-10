@@ -49,11 +49,17 @@ public:
     if (!blocks.empty()) {
       atrox::CodeExtractor ce{blocks};
 
-#if !defined(NDEBUG)
       llvm::SetVector<llvm::Value *> inputs, outputs, sinks;
-
       ce.findInputsOutputs(inputs, outputs, sinks);
 
+      CodeExtractor::InputToOutputMapTy ioMap;
+      CodeExtractor::OutputToInputMapTy oiMap;
+      ce.mapInputsOutputs(inputs, outputs, ioMap, oiMap);
+
+      llvm::SmallVector<ArgDirection, 16> argDirs;
+      ce.generateArgDirection(inputs, outputs, oiMap, argDirs);
+
+#if !defined(NDEBUG)
       LLVM_DEBUG({
         llvm::dbgs() << "inputs: " << inputs.size() << "\n";
         llvm::dbgs() << "outputs: " << outputs.size() << "\n";
@@ -63,14 +69,9 @@ public:
           llvm::dbgs() << "value used out of func: " << *output << "\n";
       });
 
-      CodeExtractor::InputToOutputMapTy ioMap;
-      CodeExtractor::OutputToInputMapTy oiMap;
-      ce.mapInputsOutputs(inputs, outputs, ioMap, oiMap);
-
       for (const auto &e : ioMap) {
         LLVM_DEBUG({
-          llvm::dbgs() << "in: " << *e.first << " -> out: " << e.second
-                       << "\n";
+          llvm::dbgs() << "in: " << *e.first << " -> out: " << e.second << "\n";
         });
       }
 
