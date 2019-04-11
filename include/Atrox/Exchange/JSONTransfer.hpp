@@ -8,6 +8,8 @@
 
 #include "Atrox/Support/IR/ArgSpec.hpp"
 
+#include "Atrox/Exchange/Info.hpp"
+
 #include "llvm/ADT/ArrayRef.h"
 // usign llvm::ArrayRef
 
@@ -29,6 +31,8 @@ namespace llvm {
 namespace json {
 
 Value toJSON(ArrayRef<atrox::ArgSpec> ArgSpecs);
+
+Value toJSON(const atrox::FunctionArgSpec &FAS);
 
 } // namespace json
 } // namespace llvm

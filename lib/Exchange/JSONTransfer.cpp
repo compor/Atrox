@@ -7,6 +7,9 @@
 #include "llvm/Support/FileSystem.h"
 // using llvm::sys::fs::F_Text
 
+#include "llvm/IR/Function.h"
+// using llvm::Function
+
 #include "llvm/Support/Path.h"
 // using llvm::sys::path::filename
 
@@ -51,7 +54,7 @@ void WriteJSONToFile(const llvm::json::Value &V,
   llvm::errs() << " done. \n";
 }
 
-} // namespace iteratorrecognition
+} // namespace atrox
 
 //
 
@@ -71,6 +74,15 @@ Value toJSON(ArrayRef<atrox::ArgSpec> ArgSpecs) {
   }
 
   root["argspecs"] = std::move(specs);
+
+  return std::move(root);
+}
+
+Value toJSON(const atrox::FunctionArgSpec &FAS) {
+  Object root;
+
+  root["func"] = FAS.Func->getName();
+  root["args"] = toJSON(FAS.Args);
 
   return std::move(root);
 }
