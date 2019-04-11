@@ -17,7 +17,7 @@
 
 extern llvm::cl::OptionCategory AtroxCLCategory;
 
-extern llvm::cl::opt<std::string> ReportsDir;
+extern llvm::cl::opt<std::string> AtroxReportsDir;
 
-extern llvm::cl::list<std::string> FunctionWhiteList;
+extern llvm::cl::list<std::string> AtroxFunctionWhiteList;
 

@@ -148,11 +148,12 @@ bool LoopBodyClonerPass::perform(
       continue;
     }
 
-    if (FunctionWhiteList.size()) {
-      auto found = std::find(FunctionWhiteList.begin(), FunctionWhiteList.end(),
-                             std::string{func.getName()});
+    if (AtroxFunctionWhiteList.size()) {
+      auto found =
+          std::find(AtroxFunctionWhiteList.begin(),
+                    AtroxFunctionWhiteList.end(), std::string{func.getName()});
 
-      if (found == FunctionWhiteList.end()) {
+      if (found == AtroxFunctionWhiteList.end()) {
         continue;
       }
     }
@@ -161,14 +162,14 @@ bool LoopBodyClonerPass::perform(
   }
 
   if (ExportResults) {
-    auto dirOrErr = iteratorrecognition::CreateDirectory(ReportsDir);
+    auto dirOrErr = iteratorrecognition::CreateDirectory(AtroxReportsDir);
     if (std::error_code ec = dirOrErr.getError()) {
       llvm::errs() << "Error: " << ec.message() << '\n';
       llvm::report_fatal_error("Failed to create reports directory" +
-                               ReportsDir);
+                               AtroxReportsDir);
     }
 
-    ReportsDir = dirOrErr.get();
+    AtroxReportsDir = dirOrErr.get();
   }
 
   while (!workList.empty()) {
@@ -223,7 +224,7 @@ bool LoopBodyClonerPass::perform(
 
       for (auto &e : i) {
         WriteJSONToFile(llvm::json::toJSON(e), "lpc." + e.Func->getName(),
-                        ReportsDir);
+                        AtroxReportsDir);
       }
     }
   }
