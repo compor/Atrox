@@ -18,6 +18,8 @@
 
 #include "Atrox/Transforms/BlockSeparator.hpp"
 
+#include "Atrox/Exchange/JSONTransfer.hpp"
+
 // TODO this is a hack and needs to be removed
 #include "IteratorRecognition/Support/FileSystem.hpp"
 
@@ -214,6 +216,15 @@ bool LoopBodyClonerPass::perform(
     } else {
       NaiveSelector s;
       hasChanged |= lpc.cloneLoops(li, s);
+    }
+
+    if (hasChanged && ExportResults) {
+      auto &i = lpc.getInfo();
+
+      for (auto &e : i) {
+        WriteJSONToFile(llvm::json::toJSON(e), "lpc." + e.Func->getName(),
+                        ReportsDir);
+      }
     }
   }
 

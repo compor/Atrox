@@ -8,6 +8,8 @@
 
 #include "Atrox/Support/IR/ArgSpec.hpp"
 
+#include "Atrox/Exchange/Info.hpp"
+
 #include "llvm/IR/Module.h"
 // using llvm::Module
 
@@ -27,9 +29,6 @@
 #include "llvm/ADT/SetVector.h"
 // using llvm::SetVector
 
-#include "llvm/ADT/DenseMap.h"
-// using llvm::DenseMap
-
 #include "llvm/Support/Debug.h"
 // using DEBUG macro
 // using llvm::dbgs
@@ -40,12 +39,14 @@ namespace atrox {
 
 class LoopBodyCloner {
   llvm::Module *TargetModule;
-  bool StoreInfo;
-  llvm::DenseMap<llvm::Function *, llvm::SmallVector<ArgSpec, 8>> CloneInfo;
+  bool ShouldStoreInfo;
+  llvm::SmallVector<FunctionArgSpec, 32> StoreInfo;
 
 public:
-  explicit LoopBodyCloner(llvm::Module &CurM, bool ShouldStoreInfo = false)
-      : TargetModule(&CurM), StoreInfo(ShouldStoreInfo) {}
+  explicit LoopBodyCloner(llvm::Module &CurM, bool _ShouldStoreInfo = false)
+      : TargetModule(&CurM), ShouldStoreInfo(_ShouldStoreInfo) {}
+
+  auto &getInfo() const { return StoreInfo; }
 
   template <typename T>
   bool cloneLoop(llvm::Loop &L, llvm::LoopInfo &LI, T &Selector) {
@@ -94,12 +95,13 @@ public:
       auto *extractedFunc = ce.cloneCodeRegion();
       hasChanged |= extractedFunc ? true : false;
 
-      if (StoreInfo) {
-        decltype(CloneInfo)::mapped_type s;
+      if (ShouldStoreInfo) {
+        std::vector<ArgSpec> specs;
         for (auto &e : argDirs) {
-          s.push_back({e, false});
+          specs.push_back({e, false});
         }
-        CloneInfo[extractedFunc] = s;
+
+        StoreInfo.push_back({extractedFunc, specs});
       }
     } else {
       LLVM_DEBUG(llvm::dbgs()
