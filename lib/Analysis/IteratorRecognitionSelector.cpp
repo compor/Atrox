@@ -36,16 +36,9 @@
 namespace atrox {
 
 IteratorRecognitionSelector::IteratorRecognitionSelector(
-    llvm::Function &Func, llvm::LoopInfo &LI, llvm::MemoryDependenceResults *MD)
-    : CurLI(&LI) {
-  auto pdgraph = BuildPDG(Func, MD);
-  Info = BuildITRInfo(LI, *pdgraph);
-}
-
-IteratorRecognitionSelector::IteratorRecognitionSelector(
-    std::unique_ptr<iteratorrecognition::IteratorRecognitionInfo> ITRInfo)
-    : CurLI(const_cast<llvm::LoopInfo *>(&ITRInfo->getLoopInfo())),
-      Info(std::move(ITRInfo)) {}
+    iteratorrecognition::IteratorRecognitionInfo &ITRInfo)
+    : CurLI(const_cast<llvm::LoopInfo *>(&ITRInfo.getLoopInfo())),
+      Info(ITRInfo) {}
 
 void IteratorRecognitionSelector::calculate(
     llvm::Loop &L, llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks) {
@@ -55,7 +48,7 @@ void IteratorRecognitionSelector::calculate(
                                                    RPOTraversal.end()};
   llvm::SmallSetVector<llvm::BasicBlock *, 16> selected;
 
-  auto infoOrError = Info->getIteratorInfoFor(&L);
+  auto infoOrError = Info.getIteratorInfoFor(&L);
 
   if (!infoOrError) {
     LLVM_DEBUG(llvm::dbgs()

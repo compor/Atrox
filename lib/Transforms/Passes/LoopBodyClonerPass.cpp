@@ -185,7 +185,7 @@ bool LoopBodyClonerPass::perform(
     auto itrInfo = BuildITRInfo(li, *BuildPDG(func, &GetMDR(func)));
 
     // TODO CAUTION
-    // this does not update the iterator info with the unconf branch instruction
+    // this does not update the iterator info with the uncond branch instruction
     // that might be added by block splitting
     if (SeparateBlocksOption) {
       for (auto *curLoop : li) {
@@ -211,8 +211,7 @@ bool LoopBodyClonerPass::perform(
 
     if (SelectionStrategyOption ==
         SelectionStrategy::IteratorRecognitionBased) {
-      // IteratorRecognitionSelector s{func, li, &GetMDR(func)};
-      IteratorRecognitionSelector s{std::move(itrInfo)};
+      IteratorRecognitionSelector s{*itrInfo};
       hasChanged |= lpc.cloneLoops(li, s);
     } else {
       NaiveSelector s;
