@@ -212,10 +212,10 @@ bool LoopBodyClonerPass::perform(
     if (SelectionStrategyOption ==
         SelectionStrategy::IteratorRecognitionBased) {
       IteratorRecognitionSelector s{*itrInfo};
-      hasChanged |= lpc.cloneLoops(li, s);
+      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo);
     } else {
       NaiveSelector s;
-      hasChanged |= lpc.cloneLoops(li, s);
+      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo);
     }
 
     if (hasChanged && ExportResults) {

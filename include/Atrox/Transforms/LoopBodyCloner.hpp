@@ -10,6 +10,10 @@
 
 #include "Atrox/Exchange/Info.hpp"
 
+#include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
+
+#include "IteratorRecognition/Analysis/IteratorValueTracking.hpp"
+
 #include "llvm/IR/Module.h"
 // using llvm::Module
 
@@ -28,6 +32,9 @@
 
 #include "llvm/ADT/SetVector.h"
 // using llvm::SetVector
+
+#include "llvm/ADT/Optional.h"
+// uaing llvm::Optional
 
 #include "llvm/Support/Debug.h"
 // using DEBUG macro
@@ -49,7 +56,9 @@ public:
   auto &getInfo() const { return StoreInfo; }
 
   template <typename T>
-  bool cloneLoop(llvm::Loop &L, llvm::LoopInfo &LI, T &Selector) {
+  bool cloneLoop(
+      llvm::Loop &L, llvm::LoopInfo &LI, T &Selector,
+      llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *> ITRInfo) {
     bool hasChanged = false;
 
     llvm::SmallVector<llvm::BasicBlock *, 32> blocks;
@@ -92,13 +101,49 @@ public:
       }
 #endif // !defined(NDEBUG)
 
+      llvm::SmallVector<bool, 16> argIteratorVariance;
+
+      if (!ITRInfo) {
+        argIteratorVariance.resize(argDirs.size(), false);
+      } else {
+        auto infoOrError = ITRInfo.getValue()->getIteratorInfoFor(&L);
+        if (!infoOrError) {
+        }
+        auto info = *infoOrError;
+
+        iteratorrecognition::IteratorDispositionAnalyzer ida{info};
+
+        for (auto *e : inputs) {
+          switch (static_cast<int>(ida.getDisposition(e))) {
+          default:
+            argIteratorVariance.push_back(false);
+            break;
+          case 2:
+            argIteratorVariance.push_back(true);
+            break;
+          }
+        }
+
+        for (auto *e : outputs) {
+          switch (static_cast<int>(ida.getDisposition(e))) {
+          default:
+            argIteratorVariance.push_back(false);
+            break;
+          case 2:
+            argIteratorVariance.push_back(true);
+            break;
+          }
+        }
+      }
+
       auto *extractedFunc = ce.cloneCodeRegion();
       hasChanged |= extractedFunc ? true : false;
 
       if (ShouldStoreInfo) {
         std::vector<ArgSpec> specs;
-        for (auto &e : argDirs) {
-          specs.push_back({e, false});
+
+        for (size_t i = 0; i < argDirs.size(); ++i) {
+          specs.push_back({argDirs[i], argIteratorVariance[i]});
         }
 
         StoreInfo.push_back({extractedFunc, specs});
@@ -111,11 +156,14 @@ public:
     return hasChanged;
   }
 
-  template <typename T> bool cloneLoops(llvm::LoopInfo &LI, T &Selector) {
+  template <typename T>
+  bool cloneLoops(
+      llvm::LoopInfo &LI, T &Selector,
+      llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *> ITRInfo) {
     bool hasChanged = false;
 
     for (auto *curLoop : LI) {
-      hasChanged |= cloneLoop(*curLoop, LI, Selector);
+      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfo);
     }
 
     return hasChanged;
