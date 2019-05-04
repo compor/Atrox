@@ -8,11 +8,11 @@
 
 #include "Atrox/Support/IR/ArgSpec.hpp"
 
+#include "Atrox/Support/IR/ArgUtils.hpp"
+
 #include "Atrox/Exchange/Info.hpp"
 
 #include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
-
-#include "IteratorRecognition/Analysis/IteratorValueTracking.hpp"
 
 #include "llvm/IR/Module.h"
 // using llvm::Module
@@ -111,29 +111,7 @@ public:
         }
         auto info = *infoOrError;
 
-        iteratorrecognition::IteratorDispositionAnalyzer ida{info};
-
-        for (auto *e : inputs) {
-          switch (static_cast<int>(ida.getDisposition(e))) {
-          default:
-            argIteratorVariance.push_back(false);
-            break;
-          case 2:
-            argIteratorVariance.push_back(true);
-            break;
-          }
-        }
-
-        for (auto *e : outputs) {
-          switch (static_cast<int>(ida.getDisposition(e))) {
-          default:
-            argIteratorVariance.push_back(false);
-            break;
-          case 2:
-            argIteratorVariance.push_back(true);
-            break;
-          }
-        }
+        generateArgIteratorVariance(inputs, outputs, info, argIteratorVariance);
       }
 
       auto *extractedFunc = ce.cloneCodeRegion();
