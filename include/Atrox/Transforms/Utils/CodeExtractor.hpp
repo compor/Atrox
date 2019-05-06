@@ -17,6 +17,8 @@
 
 #include "Atrox/Support/IR/ArgDirection.hpp"
 
+#include "Atrox/Support/IR/ArgUtils.hpp"
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
@@ -84,17 +86,8 @@ private:
   unsigned NumExitBlocks = std::numeric_limits<unsigned>::max();
   Type *RetTy;
 
-  bool isBidirectional(const llvm::Value *V, const OutputToInputMapTy &OIMap) {
-    for (const auto &e : OIMap) {
-      if (e.first == V || e.second == V) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   bool isBidirectional(const llvm::Value *V) {
-    return isBidirectional(V, OutputToInputMap);
+    return IsBidirectional(V, OutputToInputMap);
   }
 
 public:
@@ -148,10 +141,6 @@ public:
 
   void mapInputsOutputs(const ValueSet &Inputs, const ValueSet &Outputs,
                         InputToOutputMapTy &IOMap, OutputToInputMapTy &OIMap);
-
-  void generateArgDirection(const ValueSet &Inputs, const ValueSet &Outputs,
-                            const OutputToInputMapTy &OIMap,
-                            SmallVectorImpl<ArgDirection> &ArgDirs);
 
   void generateArgDirection(const ValueSet &Inputs, const ValueSet &Outputs,
                             SmallVectorImpl<ArgDirection> &ArgDirs);

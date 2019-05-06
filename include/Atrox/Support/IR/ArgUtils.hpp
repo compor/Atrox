@@ -6,7 +6,15 @@
 
 #include "Atrox/Config.hpp"
 
+#include "Atrox/Support/IR/ArgDirection.hpp"
+
 #include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
+
+#include "llvm/IR/ValueMap.h"
+// using llvm::ValueMap
+
+#include "llvm/ADT/SmallVector.h"
+// using llvm::SmallVectorImpl
 
 #include "llvm/ADT/SetVector.h"
 // using llvm::SetVector
@@ -17,11 +25,28 @@ class Value;
 
 namespace atrox {
 
-void generateArgIteratorVariance(
+inline bool IsBidirectional(
+    const llvm::Value *V,
+    const llvm::ValueMap<llvm::Value *, llvm::Value *> &OutputToInput) {
+  for (const auto &e : OutputToInput) {
+    if (e.first == V || e.second == V) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void GenerateArgIteratorVariance(
     const llvm::SetVector<llvm::Value *> &Inputs,
     const llvm::SetVector<llvm::Value *> &Outputs,
     const iteratorrecognition::IteratorInfo &Info,
-    llvm::SmallVector<bool, 16> &ArgIteratorVariance);
+    llvm::SmallVectorImpl<bool> &ArgIteratorVariance);
+
+void GenerateArgDirection(
+    const llvm::SetVector<llvm::Value *> &Inputs,
+    const llvm::SetVector<llvm::Value *> &Outputs,
+    const llvm::ValueMap<llvm::Value *, llvm::Value *> &OutputToInput,
+    llvm::SmallVectorImpl<ArgDirection> &ArgDirs);
 
 } // namespace atrox
 

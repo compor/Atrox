@@ -4,23 +4,18 @@
 
 #include "Atrox/Support/IR/ArgUtils.hpp"
 
-#include "Atrox/Support/IR/ArgDirection.hpp"
-
 #include "IteratorRecognition/Analysis/IteratorValueTracking.hpp"
 
 #include "llvm/IR/Value.h"
 // using llvm::Value
 
-#include "llvm/ADT/SetVector.h"
-// using llvm::SetVector
-
 namespace atrox {
 
-void generateArgIteratorVariance(
+void GenerateArgIteratorVariance(
     const llvm::SetVector<llvm::Value *> &Inputs,
     const llvm::SetVector<llvm::Value *> &Outputs,
     const iteratorrecognition::IteratorInfo &Info,
-    llvm::SmallVector<bool, 16> &ArgIteratorVariance) {
+    llvm::SmallVectorImpl<bool> &ArgIteratorVariance) {
   iteratorrecognition::IteratorDispositionAnalyzer ida{Info};
 
   for (auto *e : Inputs) {
@@ -43,6 +38,24 @@ void generateArgIteratorVariance(
       ArgIteratorVariance.push_back(true);
       break;
     }
+  }
+}
+
+void GenerateArgDirection(
+    const llvm::SetVector<llvm::Value *> &Inputs,
+    const llvm::SetVector<llvm::Value *> &Outputs,
+    const llvm::ValueMap<llvm::Value *, llvm::Value *> &OutputToInput,
+    llvm::SmallVectorImpl<ArgDirection> &ArgDirs) {
+  for (auto *v : Inputs) {
+    if (!IsBidirectional(v, OutputToInput)) {
+      ArgDirs.push_back(ArgDirection::AD_Inbound);
+    }
+  }
+
+  for (auto *v : Outputs) {
+    ArgDirs.push_back(IsBidirectional(v, OutputToInput)
+                          ? ArgDirection::AD_Both
+                          : ArgDirection::AD_Outbound);
   }
 }
 

@@ -555,30 +555,8 @@ void CodeExtractor::mapInputsOutputs(const ValueSet &Inputs,
 
 void CodeExtractor::generateArgDirection(
     const ValueSet &Inputs, const ValueSet &Outputs,
-    const OutputToInputMapTy &OIMap, SmallVectorImpl<ArgDirection> &ArgDirs) {
-  for (auto *v : Inputs) {
-    if (!isBidirectional(v, OIMap)) {
-      ArgDirs.push_back(ArgDirection::AD_Inbound);
-    }
-  }
-
-  for (auto *v : Outputs) {
-    ArgDirs.push_back(isBidirectional(v, OIMap) ? ArgDirection::AD_Both
-                                                : ArgDirection::AD_Outbound);
-  }
-
-  LLVM_DEBUG({
-    for (size_t i = 0; i < ArgDirs.size(); ++i) {
-      llvm::dbgs() << "arg " << i << ": " << static_cast<int>(ArgDirs[i])
-                   << '\n';
-    }
-  });
-}
-
-void CodeExtractor::generateArgDirection(
-    const ValueSet &Inputs, const ValueSet &Outputs,
     SmallVectorImpl<ArgDirection> &ArgDirs) {
-  generateArgDirection(Inputs, Outputs, OutputToInputMap, ArgDirs);
+  GenerateArgDirection(Inputs, Outputs, OutputToInputMap, ArgDirs);
 }
 
 /// severSplitPHINodes - If a PHI node has multiple inputs from outside of the

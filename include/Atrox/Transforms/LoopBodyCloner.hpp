@@ -75,7 +75,7 @@ public:
       ce.mapInputsOutputs(inputs, outputs, ioMap, oiMap);
 
       llvm::SmallVector<ArgDirection, 16> argDirs;
-      ce.generateArgDirection(inputs, outputs, oiMap, argDirs);
+      GenerateArgDirection(inputs, outputs, oiMap, argDirs);
 
 #if !defined(NDEBUG)
       LLVM_DEBUG({
@@ -111,7 +111,7 @@ public:
         }
         auto info = *infoOrError;
 
-        generateArgIteratorVariance(inputs, outputs, info, argIteratorVariance);
+        GenerateArgIteratorVariance(inputs, outputs, info, argIteratorVariance);
       }
 
       auto *extractedFunc = ce.cloneCodeRegion();
