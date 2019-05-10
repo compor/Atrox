@@ -184,9 +184,11 @@ bool LoopBodyClonerPass::perform(
 
     auto itrInfo = BuildITRInfo(li, *BuildPDG(func, &GetMDR(func)));
 
-    // TODO CAUTION
+    // NOTE
     // this does not update the iterator info with the uncond branch instruction
     // that might be added by block splitting
+    // however that instruction can acquire the mode of its immediately
+    // preceding instruction
     if (SeparateBlocksOption) {
       for (auto *curLoop : li) {
         BlockModeChangePointMapTy modeChanges;
