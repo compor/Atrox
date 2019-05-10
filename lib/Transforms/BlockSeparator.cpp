@@ -40,7 +40,7 @@ bool FindPartitionPoints(const llvm::Loop &CurLoop,
        ++bi) {
     auto *bb = *bi;
     auto firstI = bb->getFirstInsertionPt();
-    auto lastSeenMode = GetMode(*firstI, CurLoop, Info);
+    auto lastSeenMode = InvertMode(GetMode(*firstI, CurLoop, Info));
     bool hasAllSameModeInstructions = true;
 
     for (auto ii = firstI, ie = bb->end(); ii != ie; ++ii) {
