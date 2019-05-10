@@ -25,6 +25,9 @@
 #include <algorithm>
 // using std::reverse
 
+#include <iterator>
+// using std::prev
+
 namespace atrox {
 
 Mode GetMode(const llvm::Instruction &Inst, const llvm::Loop &CurLoop,
@@ -40,8 +43,13 @@ bool FindPartitionPoints(const llvm::Loop &CurLoop,
        ++bi) {
     auto *bb = *bi;
     auto firstI = bb->getFirstInsertionPt();
-    auto lastSeenMode = InvertMode(GetMode(*firstI, CurLoop, Info));
+    // auto lastSeenMode = InvertMode(GetMode(*firstI, CurLoop, Info));
     bool hasAllSameModeInstructions = true;
+
+    auto lastSeenMode = GetMode(*firstI, CurLoop, Info);
+    if (firstI != bb->begin()) {
+      lastSeenMode = GetMode(*std::prev(firstI), CurLoop, Info);
+    }
 
     for (auto ii = firstI, ie = bb->end(); ii != ie; ++ii) {
       auto &inst = *ii;
