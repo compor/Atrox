@@ -99,48 +99,19 @@ public:
 
 } // namespace
 
-BlockPayloadMapTy CalculatePayloadWeight(const llvm::Loop &CurLoop) {
-  BlockPayloadMapTy blockPayloadMap;
-
-  return blockPayloadMap;
-}
-
-/*BlockPayloadMapTy CalculatePayloadWeight(const llvm::Loop &CurLoop,
-                                         const DecoupleLoopsPass *DLP) {
-  assert(CurLoop.isLoopSimplifyForm() && "Loop is not in simplify form!");
-
-  llvm::SmallPtrSet<llvm::BasicBlock *, 16> workList;
-
-  if (DLP)
-    std::for_each(CurLoop.block_begin(), CurLoop.block_end(), [&](auto &e) {
-      assert(IsSingleMode(*e, CurLoop, *DLP) &&
-             "Loop basic block is not a single mode!");
-
-      if (GetMode(*e->begin(), CurLoop, *DLP) ==
-          IteratorRecognition::Mode::Payload)
-        workList.insert(e);
-    });
-  else
-    std::for_each(CurLoop.block_begin(), CurLoop.block_end(), [&](auto &e) {
-      if (IsAnnotatedWithMode(*e) &&
-          GetAnnotatedMode(*e) == IteratorRecognition::Mode::Payload)
-        workList.insert(e);
-    });
-
-  workList.erase(CurLoop.getLoopLatch());
-  workList.erase(CurLoop.getHeader());
-
+BlockPayloadMapTy
+CalculatePayloadWeight(const llvm::SmallVectorImpl<llvm::BasicBlock *> Blocks) {
   BlockPayloadMapTy blockPayloadMap;
   PayloadWeightCalculator pwc;
 
-  for (auto *e : workList) {
+  for (auto *e : Blocks) {
     pwc.reset();
     pwc.visit(*e);
     blockPayloadMap.emplace(e, pwc.getWeight());
   }
 
   return blockPayloadMap;
-}*/
+}
 
 } // namespace atrox
 

@@ -6,6 +6,9 @@
 
 #include "Atrox/Config.hpp"
 
+#include "llvm/ADT/SmallVector.h"
+// using llvm::SmallVector
+
 #include <map>
 // using std::map
 
@@ -34,11 +37,8 @@ enum class WeightedPayloadType : PayloadWeightTy {
   Maximum = std::numeric_limits<PayloadWeightTy>::max()
 };
 
-BlockPayloadMapTy CalculatePayloadWeight(const llvm::Loop &CurLoop);
-
-// BlockPayloadMapTy
-// CalculatePayloadWeight(const llvm::Loop &CurLoop,
-// const DecoupleLoopsPass *DLP = nullptr);
+BlockPayloadMapTy
+CalculatePayloadWeight(const llvm::SmallVectorImpl<llvm::BasicBlock *> Blocks);
 
 } // namespace atrox
 
