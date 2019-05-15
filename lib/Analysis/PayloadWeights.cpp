@@ -99,8 +99,8 @@ public:
 
 } // namespace
 
-BlockPayloadMapTy
-CalculatePayloadWeight(const llvm::SmallVectorImpl<llvm::BasicBlock *> Blocks) {
+BlockPayloadMapTy CalculatePayloadWeight(
+    const llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks) {
   BlockPayloadMapTy blockPayloadMap;
   PayloadWeightCalculator pwc;
 

@@ -38,7 +38,7 @@ enum class WeightedPayloadType : PayloadWeightTy {
 };
 
 BlockPayloadMapTy
-CalculatePayloadWeight(const llvm::SmallVectorImpl<llvm::BasicBlock *> Blocks);
+CalculatePayloadWeight(const llvm::SmallVectorImpl<llvm::BasicBlock *> &Blocks);
 
 } // namespace atrox
 
