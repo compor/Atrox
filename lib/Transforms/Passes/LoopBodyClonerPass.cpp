@@ -12,6 +12,8 @@
 
 #include "Atrox/Analysis/IteratorRecognitionSelector.hpp"
 
+#include "Atrox/Analysis/WeightedIteratorRecognitionSelector.hpp"
+
 #include "Atrox/Transforms/Passes/LoopBodyClonerPass.hpp"
 
 #include "Atrox/Transforms/LoopBodyCloner.hpp"
@@ -98,13 +100,20 @@ static llvm::RegisterStandardPasses RegisterLoopBodyClonerLegacyPass(
 
 //
 
-enum class SelectionStrategy { Naive, IteratorRecognitionBased };
+enum class SelectionStrategy {
+  Naive,
+  IteratorRecognitionBased,
+  WeightedIteratorRecognitionBased
+};
 
 static llvm::cl::opt<SelectionStrategy> SelectionStrategyOption(
     "atrox-selection-strategy", llvm::cl::desc("block selection strategy"),
-    llvm::cl::values(clEnumValN(SelectionStrategy::Naive, "naive", "naive"),
-                     clEnumValN(SelectionStrategy::IteratorRecognitionBased,
-                                "itr", "iterator recognition based")),
+    llvm::cl::values(
+        clEnumValN(SelectionStrategy::Naive, "naive", "naive"),
+        clEnumValN(SelectionStrategy::IteratorRecognitionBased, "itr",
+                   "iterator recognition based"),
+        clEnumValN(SelectionStrategy::WeightedIteratorRecognitionBased, "witr",
+                   "weighted iterator recognition based")),
     llvm::cl::cat(AtroxCLCategory));
 
 static llvm::cl::opt<bool> SeparateBlocksOption(
@@ -214,6 +223,10 @@ bool LoopBodyClonerPass::perform(
     if (SelectionStrategyOption ==
         SelectionStrategy::IteratorRecognitionBased) {
       IteratorRecognitionSelector s{*itrInfo};
+      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo);
+    } else if (SelectionStrategyOption ==
+               SelectionStrategy::WeightedIteratorRecognitionBased) {
+      WeightedIteratorRecognitionSelector s{*itrInfo};
       hasChanged |= lpc.cloneLoops(li, s, &*itrInfo);
     } else {
       NaiveSelector s;
