@@ -148,6 +148,7 @@ set(LIB_SOURCES
   "lib/Support/IR/ArgUtils.cpp"
   "lib/Analysis/NaiveSelector.cpp"
   "lib/Analysis/PayloadWeights.cpp"
+  "lib/Analysis/PayloadTree.cpp"
   "lib/Analysis/IteratorRecognitionSelector.cpp"
   "lib/Transforms/Utils/CodeExtractor.cpp"
   "lib/Analysis/Utils/PDGUtils.cpp"
