@@ -4,6 +4,8 @@
 
 #include "Atrox/Analysis/IteratorRecognitionSelector.hpp"
 
+#include "Atrox/Analysis/PayloadTree.hpp"
+
 #include "private/PDGUtils.hpp"
 
 #include "private/ITRUtils.hpp"
@@ -69,6 +71,8 @@ void IteratorRecognitionSelector::calculate(
   for (auto *b : latches) {
     blocks.erase(std::remove(blocks.begin(), blocks.end(), b), blocks.end());
   }
+
+  auto trees = SelectPayloadTrees(L, Info.getLoopInfo(), payloadBlocks);
 
   for (auto *bb : blocks) {
     if (selected.count(bb)) {
