@@ -30,9 +30,9 @@
 
 namespace atrox {
 
-BlockRootGroupMapTy
-SelectPayloadTrees(llvm::Loop &CurLoop, llvm::LoopInfo &CurLI,
-                   llvm::SmallVectorImpl<llvm::BasicBlock *> &PayloadBlocks) {
+BlockRootGroupMapTy SelectPayloadTrees(
+    llvm::Loop &CurLoop, const llvm::LoopInfo &CurLI,
+    const llvm::SmallVectorImpl<llvm::BasicBlock *> &PayloadBlocks) {
   BlockSetTy loopBlocks;
   BlockSetTy payloadBlocks;
   BlockSetTy iteratorBlocks;

@@ -27,9 +27,9 @@ namespace atrox {
 using BlockSetTy = llvm::SmallPtrSet<llvm::BasicBlock *, 16>;
 using BlockRootGroupMapTy = std::map<llvm::BasicBlock *, BlockSetTy>;
 
-BlockRootGroupMapTy
-SelectPayloadTrees(llvm::Loop &CurLoop, llvm::LoopInfo &CurLI,
-                   llvm::SmallVectorImpl<llvm::BasicBlock *> &PayloadBlocks);
+BlockRootGroupMapTy SelectPayloadTrees(
+    llvm::Loop &CurLoop, const llvm::LoopInfo &CurLI,
+    const llvm::SmallVectorImpl<llvm::BasicBlock *> &PayloadBlocks);
 
 } // namespace atrox
 
