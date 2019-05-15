@@ -26,7 +26,7 @@
 #include <cassert>
 // using assert
 
-#define DEBUG_TYPE "payload-tree"
+#define DEBUG_TYPE "atrox-payload-tree"
 
 namespace atrox {
 
