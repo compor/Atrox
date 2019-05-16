@@ -15,7 +15,7 @@ opt \
   -scev-aa \
   -tbaa \
   -atrox-lbc-pass \
-  -atrox-selection-strategy=itr \
+  -atrox-selection-strategy=witr \
   -atrox-export-results \
   -debug-only=atrox-loop-body-clone \
   -debug-only=atrox-selector \

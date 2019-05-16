@@ -94,10 +94,6 @@ void WeightedIteratorRecognitionSelector::calculate(
       treeWeights.begin(), treeWeights.end(),
       [](const auto &e1, const auto &e2) { return e1.second < e2.second; });
 
-  for (auto &lol : *m->first) {
-    llvm::dbgs() << lol << '\n';
-  }
-
   selected.insert(trees[m->first].begin(), trees[m->first].end());
   Blocks.append(selected.begin(), selected.end());
 }
