@@ -240,7 +240,7 @@ if(Pedigree_FOUND)
 endif()
 
 if(IteratorRecognition_FOUND)
-  target_link_libraries(${TEST_LIB_NAME} PUBLIC LLVMIteratorRecognitonPass)
+  target_link_libraries(${TEST_LIB_NAME} PUBLIC LLVMIteratorRecognitionPass)
 
   if(ATROX_RPATH_LINK_DEPENDENCIES)
     target_link_libraries(${LIB_NAME} PUBLIC LLVMIteratorRecognitionPass)
