@@ -22,7 +22,7 @@
 
 #include "Atrox/Exchange/JSONTransfer.hpp"
 
-// TODO this is a hack and needs to be removed
+// TODO maybe factor out this code to common utility project
 #include "IteratorRecognition/Support/FileSystem.hpp"
 
 #include "private/PassCommandLineOptions.hpp"

@@ -8,6 +8,9 @@
 
 #include "Atrox/Support/IR/ArgSpec.hpp"
 
+#include "llvm/Analysis/LoopInfo.h"
+// using llvm::Loop
+
 #include <vector>
 // using std::vector
 
@@ -19,6 +22,7 @@ namespace atrox {
 
 struct FunctionArgSpec {
   llvm::Function *Func;
+  llvm::Loop *CurLoop;
   std::vector<ArgSpec> Args;
 };
 

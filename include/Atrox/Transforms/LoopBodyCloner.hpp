@@ -124,7 +124,7 @@ public:
           specs.push_back({argDirs[i], argIteratorVariance[i]});
         }
 
-        StoreInfo.push_back({extractedFunc, specs});
+        StoreInfo.push_back({extractedFunc, &L, specs});
       }
     } else {
       LLVM_DEBUG(llvm::dbgs()

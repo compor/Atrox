@@ -4,6 +4,9 @@
 
 #include "Atrox/Exchange/JSONTransfer.hpp"
 
+// TODO maybe factor out this code to common utility project
+#include "IteratorRecognition/Exchange/JSONTransfer.hpp"
+
 #include "llvm/Support/FileSystem.h"
 // using llvm::sys::fs::F_Text
 
@@ -82,6 +85,7 @@ Value toJSON(const atrox::FunctionArgSpec &FAS) {
   Object root;
 
   root["func"] = FAS.Func->getName();
+  root["loop"] = iteratorrecognition::json::toJSON(*FAS.CurLoop);
   root["args"] = toJSON(FAS.Args);
 
   return std::move(root);
