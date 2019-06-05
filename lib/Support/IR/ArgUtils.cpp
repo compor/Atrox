@@ -4,7 +4,7 @@
 
 #include "Atrox/Support/IR/ArgUtils.hpp"
 
-#include "IteratorRecognition/Analysis/IteratorValueTracking.hpp"
+#include "IteratorRecognition/Analysis/DispositionTracker.hpp"
 
 #include "llvm/IR/Value.h"
 // using llvm::Value
@@ -16,7 +16,7 @@ void GenerateArgIteratorVariance(
     const llvm::SetVector<llvm::Value *> &Outputs,
     const iteratorrecognition::IteratorInfo &Info,
     llvm::SmallVectorImpl<bool> &ArgIteratorVariance) {
-  iteratorrecognition::IteratorDispositionAnalyzer ida{Info};
+  iteratorrecognition::DispositionTracker ida{Info};
 
   for (auto *e : Inputs) {
     switch (static_cast<int>(ida.getDisposition(e))) {
