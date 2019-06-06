@@ -27,6 +27,9 @@
 // using llvm::LoopInfo
 // using llvm::Loop
 
+#include "llvm/Analysis/AliasAnalysis.h"
+// using llvm::AAResults
+
 #include "llvm/ADT/SmallVector.h"
 // using llvm::SmallVector
 
@@ -58,7 +61,8 @@ public:
   template <typename T>
   bool cloneLoop(
       llvm::Loop &L, llvm::LoopInfo &LI, T &Selector,
-      llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *> ITRInfo) {
+      llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *> ITRInfo,
+      llvm::AAResults *AA = nullptr) {
     bool hasChanged = false;
 
     llvm::SmallVector<llvm::BasicBlock *, 32> blocks;
@@ -75,7 +79,7 @@ public:
       ce.mapInputsOutputs(inputs, outputs, ioMap, oiMap);
 
       llvm::SmallVector<ArgDirection, 16> argDirs;
-      GenerateArgDirection(inputs, outputs, oiMap, argDirs);
+      GenerateArgDirection(inputs, outputs, oiMap, argDirs, AA);
 
 #if !defined(NDEBUG)
       LLVM_DEBUG({
@@ -137,11 +141,12 @@ public:
   template <typename T>
   bool cloneLoops(
       llvm::LoopInfo &LI, T &Selector,
-      llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *> ITRInfo) {
+      llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *> ITRInfo,
+      llvm::AAResults *AA = nullptr) {
     bool hasChanged = false;
 
     for (auto *curLoop : LI) {
-      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfo);
+      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfo, AA);
     }
 
     return hasChanged;

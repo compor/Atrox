@@ -34,6 +34,10 @@
 #include "llvm/Pass.h"
 // using llvm::RegisterPass
 
+#include "llvm/Analysis/AliasAnalysis.h"
+// using llvm::AAResultsWrapperPass
+// using llvm::AAResults
+
 #include "llvm/IR/Instruction.h"
 // using llvm::Instruction
 
@@ -146,7 +150,8 @@ LoopBodyClonerPass::LoopBodyClonerPass() {
 
 bool LoopBodyClonerPass::perform(
     llvm::Module &M,
-    std::function<llvm::MemoryDependenceResults &(llvm::Function &)> &GetMDR) {
+    std::function<llvm::MemoryDependenceResults &(llvm::Function &)> &GetMDR,
+    std::function<llvm::AAResults &(llvm::Function &)> &GetAA) {
   bool hasChanged = false;
 
   llvm::SmallVector<llvm::Function *, 32> workList;
@@ -192,6 +197,7 @@ bool LoopBodyClonerPass::perform(
     llvm::LoopInfo li{dt};
 
     auto itrInfo = BuildITRInfo(li, *BuildPDG(func, &GetMDR(func)));
+    auto &AA = GetAA(func);
 
     // NOTE
     // this does not update the iterator info with the uncond branch instruction
@@ -223,14 +229,14 @@ bool LoopBodyClonerPass::perform(
     if (SelectionStrategyOption ==
         SelectionStrategy::IteratorRecognitionBased) {
       IteratorRecognitionSelector s{*itrInfo};
-      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo);
+      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo, &AA);
     } else if (SelectionStrategyOption ==
                SelectionStrategy::WeightedIteratorRecognitionBased) {
       WeightedIteratorRecognitionSelector s{*itrInfo};
-      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo);
+      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo, &AA);
     } else {
       NaiveSelector s;
-      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo);
+      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo, &AA);
     }
 
     if (hasChanged && ExportResults) {
@@ -256,7 +262,12 @@ LoopBodyClonerPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
     return FAM.getResult<llvm::MemoryDependenceAnalysis>(F);
   };
 
-  bool hasChanged = perform(M, GetMDR);
+  std::function<llvm::AAResults &(llvm::Function &)> GetAA =
+      [&](llvm::Function &F) -> llvm::AAResults & {
+    return FAM.getResult<llvm::AAManager>(F);
+  };
+
+  bool hasChanged = perform(M, GetMDR, GetAA);
 
   return hasChanged ? llvm::PreservedAnalyses::all()
                     : llvm::PreservedAnalyses::none();
@@ -265,6 +276,7 @@ LoopBodyClonerPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
 // legacy passmanager pass
 
 void LoopBodyClonerLegacyPass::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+  AU.addRequiredTransitive<llvm::AAResultsWrapperPass>();
   AU.addRequired<llvm::MemoryDependenceWrapperPass>();
   AU.setPreservesAll();
 }
@@ -277,7 +289,12 @@ bool LoopBodyClonerLegacyPass::runOnModule(llvm::Module &M) {
     return this->getAnalysis<MemoryDependenceWrapperPass>(F).getMemDep();
   };
 
-  return pass.perform(M, GetMDR);
+  std::function<llvm::AAResults &(llvm::Function &)> GetAA =
+      [this](llvm::Function &F) -> llvm::AAResults & {
+    return this->getAnalysis<AAResultsWrapperPass>(F).getAAResults();
+  };
+
+  return pass.perform(M, GetMDR, GetAA);
 }
 
 } // namespace atrox

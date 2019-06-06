@@ -12,6 +12,9 @@
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 // using llvm::MemoryDependenceResults
 
+#include "llvm/Analysis/AliasAnalysis.h"
+// using llvm::AAResults
+
 #include "llvm/IR/PassManager.h"
 // using llvm::ModuleAnalysisManager
 // using llvm::PassInfoMixin
@@ -34,7 +37,8 @@ public:
 
   bool perform(
       llvm::Module &M,
-      std::function<llvm::MemoryDependenceResults &(llvm::Function &)> &GetMDR);
+      std::function<llvm::MemoryDependenceResults &(llvm::Function &)> &GetMDR,
+      std::function<llvm::AAResults &(llvm::Function &)> &GetAA);
 
   llvm::PreservedAnalyses run(llvm::Module &M,
                               llvm::ModuleAnalysisManager &MAM);

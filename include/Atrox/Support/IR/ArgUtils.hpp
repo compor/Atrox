@@ -13,6 +13,9 @@
 #include "llvm/IR/ValueMap.h"
 // using llvm::ValueMap
 
+#include "llvm/Analysis/AliasAnalysis.h"
+// using llvm::AAResults
+
 #include "llvm/ADT/SmallVector.h"
 // using llvm::SmallVectorImpl
 
@@ -46,7 +49,8 @@ void GenerateArgDirection(
     const llvm::SetVector<llvm::Value *> &Inputs,
     const llvm::SetVector<llvm::Value *> &Outputs,
     const llvm::ValueMap<llvm::Value *, llvm::Value *> &OutputToInput,
-    llvm::SmallVectorImpl<ArgDirection> &ArgDirs);
+    llvm::SmallVectorImpl<ArgDirection> &ArgDirs,
+    llvm::AAResults *AA = nullptr);
 
 } // namespace atrox
 

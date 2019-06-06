@@ -45,7 +45,8 @@ void GenerateArgDirection(
     const llvm::SetVector<llvm::Value *> &Inputs,
     const llvm::SetVector<llvm::Value *> &Outputs,
     const llvm::ValueMap<llvm::Value *, llvm::Value *> &OutputToInput,
-    llvm::SmallVectorImpl<ArgDirection> &ArgDirs) {
+    llvm::SmallVectorImpl<ArgDirection> &ArgDirs, llvm::AAResults *AA) {
+
   for (auto *v : Inputs) {
     if (!IsBidirectional(v, OutputToInput)) {
       ArgDirs.push_back(ArgDirection::AD_Inbound);
