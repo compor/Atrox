@@ -13,55 +13,46 @@
 #include "llvm/ADT/SmallPtrSet.h"
 // using llvm::SmallPtrSet
 
+#include "llvm/Support/Debug.h"
+// using LLVM_DEBUG macro
+// using llvm::dbgs
+
 #include <algorithm>
 // using std::find
 
+#define DEBUG_TYPE "atrox-mai"
+
 namespace atrox {
 
-void MemoryAccessInfo::filterMemoryAccesses() {
-  for (auto *bb : Blocks) {
-    for (auto &inst : *bb) {
-      if (inst.mayReadFromMemory()) {
-        Loads.push_back(&inst);
-      }
-
-      if (inst.mayWriteToMemory()) {
-        Stores.push_back(&inst);
-      }
-    }
-  }
-}
-
-void MemoryAccessInfo::findAccessPointers() {
-  llvm::SmallPtrSet<llvm::Value *, 16> Seen;
-
-  for (auto *st : Stores) {
-    auto loc = llvm::MemoryLocation::get(st);
-    auto *ptr = const_cast<llvm::Value *>(loc.Ptr);
-
-    if (Seen.insert(ptr).second) {
-      StorePtrs.push_back(ptr);
-      AST.add(ptr, llvm::MemoryLocation::UnknownSize, loc.AATags);
-    }
-  }
-
-  for (auto *ld : Loads) {
-    auto loc = llvm::MemoryLocation::get(ld);
-    auto *ptr = const_cast<llvm::Value *>(loc.Ptr);
-
-    if (Seen.insert(ptr).second) {
-      LoadPtrs.push_back(ptr);
-      AST.add(ptr, llvm::MemoryLocation::UnknownSize, loc.AATags);
-    }
-  }
-}
-
 bool MemoryAccessInfo::isRead(llvm::Value *V) {
-  return std::find(LoadPtrs.begin(), LoadPtrs.end(), V) != LoadPtrs.end();
+  auto *inst = llvm::dyn_cast<llvm::Instruction>(V);
+
+  for (auto *bb : Blocks) {
+    for (auto &i : *bb) {
+      auto mri = AA->getModRefInfo(&i, llvm::MemoryLocation::getOrNone(inst));
+
+      if (llvm::isRefSet(mri) && !llvm::isModSet(mri)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 bool MemoryAccessInfo::isWrite(llvm::Value *V) {
-  return std::find(StorePtrs.begin(), StorePtrs.end(), V) != StorePtrs.end();
+  auto *inst = llvm::dyn_cast<llvm::Instruction>(V);
+
+  for (auto *bb : Blocks) {
+    for (auto &i : *bb) {
+      auto mri = AA->getModRefInfo(&i, llvm::MemoryLocation::getOrNone(inst));
+      if (llvm::isModSet(mri)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 } // namespace atrox

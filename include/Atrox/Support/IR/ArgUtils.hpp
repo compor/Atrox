@@ -8,13 +8,12 @@
 
 #include "Atrox/Support/IR/ArgDirection.hpp"
 
+#include "Atrox/Analysis/MemoryAccessInfo.hpp"
+
 #include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
 
 #include "llvm/IR/ValueMap.h"
 // using llvm::ValueMap
-
-#include "llvm/Analysis/AliasAnalysis.h"
-// using llvm::AAResults
 
 #include "llvm/ADT/SmallVector.h"
 // using llvm::SmallVectorImpl
@@ -50,7 +49,7 @@ void GenerateArgDirection(
     const llvm::SetVector<llvm::Value *> &Outputs,
     const llvm::ValueMap<llvm::Value *, llvm::Value *> &OutputToInput,
     llvm::SmallVectorImpl<ArgDirection> &ArgDirs,
-    llvm::AAResults *AA = nullptr);
+    MemoryAccessInfo *MAI = nullptr);
 
 } // namespace atrox
 

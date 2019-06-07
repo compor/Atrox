@@ -4,12 +4,14 @@
 
 #include "Atrox/Support/IR/ArgUtils.hpp"
 
-#include "Atrox/Analysis/MemoryAccessInfo.hpp"
-
 #include "IteratorRecognition/Analysis/DispositionTracker.hpp"
 
 #include "llvm/IR/Value.h"
 // using llvm::Value
+
+#include "llvm/Support/Debug.h"
+// using LLVM_DEBUG macro
+// using llvm::dbgs
 
 namespace atrox {
 
@@ -47,24 +49,24 @@ void GenerateArgDirection(
     const llvm::SetVector<llvm::Value *> &Inputs,
     const llvm::SetVector<llvm::Value *> &Outputs,
     const llvm::ValueMap<llvm::Value *, llvm::Value *> &OutputToInput,
-    llvm::SmallVectorImpl<ArgDirection> &ArgDirs, llvm::AAResults *AA) {
-  MemoryAccessInfo mai{AA};
+    llvm::SmallVectorImpl<ArgDirection> &ArgDirs, MemoryAccessInfo *MAI) {
 
   for (auto *v : Inputs) {
-    if (v->getType()->isPointerTy()) {
-      if (mai.isWrite(v)) {
+    if (MAI && v->getType()->isPointerTy()) {
+      if (MAI->isWrite(v)) {
         ArgDirs.push_back(ArgDirection::AD_Both);
+        continue;
       }
 
-      if (mai.isRead(v)) {
+      if (MAI->isRead(v)) {
         ArgDirs.push_back(ArgDirection::AD_Inbound);
       }
-
-      continue;
-    }
-
-    if (!IsBidirectional(v, OutputToInput)) {
-      ArgDirs.push_back(ArgDirection::AD_Inbound);
+    } else {
+      if (!IsBidirectional(v, OutputToInput)) {
+        ArgDirs.push_back(ArgDirection::AD_Inbound);
+      } else {
+        ArgDirs.push_back(ArgDirection::AD_Both);
+      }
     }
   }
 

@@ -10,6 +10,8 @@
 
 #include "Atrox/Support/IR/ArgUtils.hpp"
 
+#include "Atrox/Analysis/MemoryAccessInfo.hpp"
+
 #include "Atrox/Exchange/Info.hpp"
 
 #include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
@@ -79,7 +81,8 @@ public:
       ce.mapInputsOutputs(inputs, outputs, ioMap, oiMap);
 
       llvm::SmallVector<ArgDirection, 16> argDirs;
-      GenerateArgDirection(inputs, outputs, oiMap, argDirs, AA);
+      MemoryAccessInfo mai{blocks, AA};
+      GenerateArgDirection(inputs, outputs, oiMap, argDirs, &mai);
 
 #if !defined(NDEBUG)
       LLVM_DEBUG({
