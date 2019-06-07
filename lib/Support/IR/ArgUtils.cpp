@@ -4,6 +4,8 @@
 
 #include "Atrox/Support/IR/ArgUtils.hpp"
 
+#include "Atrox/Analysis/MemoryAccessInfo.hpp"
+
 #include "IteratorRecognition/Analysis/DispositionTracker.hpp"
 
 #include "llvm/IR/Value.h"
@@ -46,8 +48,21 @@ void GenerateArgDirection(
     const llvm::SetVector<llvm::Value *> &Outputs,
     const llvm::ValueMap<llvm::Value *, llvm::Value *> &OutputToInput,
     llvm::SmallVectorImpl<ArgDirection> &ArgDirs, llvm::AAResults *AA) {
+  MemoryAccessInfo mai{AA};
 
   for (auto *v : Inputs) {
+    if (v->getType()->isPointerTy()) {
+      if (mai.isWrite(v)) {
+        ArgDirs.push_back(ArgDirection::AD_Both);
+      }
+
+      if (mai.isRead(v)) {
+        ArgDirs.push_back(ArgDirection::AD_Inbound);
+      }
+
+      continue;
+    }
+
     if (!IsBidirectional(v, OutputToInput)) {
       ArgDirs.push_back(ArgDirection::AD_Inbound);
     }
