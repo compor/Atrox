@@ -54,7 +54,11 @@ bool FindPartitionPoints(const llvm::Loop &CurLoop,
 
     auto lastSeenMode = GetMode(*firstI, CurLoop, Info);
     if (firstI != bb->begin()) {
-      lastSeenMode = GetMode(*std::prev(firstI), CurLoop, Info);
+      auto modeChangePt = std::make_pair(&*firstI, InvertMode(lastSeenMode));
+      if (Points.find(bb) == Points.end())
+        Points.emplace(bb, std::vector<BlockModeChangePointTy>{});
+
+      Points.at(bb).push_back(modeChangePt);
     }
 
     for (auto ii = firstI, ie = bb->end(); ii != ie; ++ii) {
