@@ -221,7 +221,11 @@ bool LoopBodyClonerPass::perform(
 
         if (found) {
           SplitAtPartitionPoints(modeChanges, blockModes, &dt, &li);
-          hasChanged |= true;
+          hasChanged = true;
+          LLVM_DEBUG(llvm::dbgs() << "partition points found: "
+                                  << modeChanges.size() << '\n';);
+        } else {
+          LLVM_DEBUG(llvm::dbgs() << "No partition points found\n";);
         }
       }
     }

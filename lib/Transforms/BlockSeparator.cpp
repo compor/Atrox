@@ -22,11 +22,17 @@
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 // using llvm::SplitBlock
 
+#include "llvm/Support/Debug.h"
+// using LLVM_DEBUG macro
+// using llvm::dbgs
+
 #include <algorithm>
 // using std::reverse
 
 #include <iterator>
 // using std::prev
+
+#define DEBUG_TYPE "atrox-separator"
 
 namespace atrox {
 
