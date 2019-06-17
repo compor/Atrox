@@ -124,7 +124,7 @@ public:
       auto *extractedFunc = ce.cloneCodeRegion();
       hasChanged |= extractedFunc ? true : false;
 
-      if (ShouldStoreInfo) {
+      if (ShouldStoreInfo && extractedFunc) {
         std::vector<ArgSpec> specs;
 
         for (size_t i = 0; i < argDirs.size(); ++i) {
