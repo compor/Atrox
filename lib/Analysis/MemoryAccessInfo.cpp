@@ -17,6 +17,9 @@
 // using LLVM_DEBUG macro
 // using llvm::dbgs
 
+#include "llvm/Support/Debug.h"
+// using llvm_unreachable
+
 #include <algorithm>
 // using std::find
 
@@ -41,15 +44,22 @@ bool MemoryAccessInfo::isRead(llvm::Value *V) {
 }
 
 bool MemoryAccessInfo::isWrite(llvm::Value *V) {
-  auto *inst = llvm::dyn_cast<llvm::Instruction>(V);
+  LLVM_DEBUG(llvm::dbgs() << "examining write for: " << *V << '\n';);
 
-  for (auto *bb : Blocks) {
-    for (auto &i : *bb) {
-      auto mri = AA->getModRefInfo(&i, llvm::MemoryLocation::getOrNone(inst));
-      if (llvm::isModSet(mri)) {
-        return true;
+  if (auto *inst = llvm::dyn_cast<llvm::Argument>(V)) {
+    // TODO more elaborate handling is required here
+    return true;
+  } else if (auto *inst = llvm::dyn_cast<llvm::Instruction>(V)) {
+    for (auto *bb : Blocks) {
+      for (auto &i : *bb) {
+        auto mri = AA->getModRefInfo(&i, llvm::MemoryLocation::getOrNone(inst));
+        if (llvm::isModSet(mri)) {
+          return true;
+        }
       }
     }
+  } else {
+    llvm_unreachable("Unhandled value type");
   }
 
   return false;
