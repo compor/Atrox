@@ -21,8 +21,8 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/SetVector.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
 #include <limits>
 
@@ -138,6 +138,8 @@ public:
   /// significant impact on the cost however.
   void findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
                          const ValueSet &Allocas) const;
+
+  void findGlobalInputsOutputs(ValueSet &Inputs, ValueSet &Outputs) const;
 
   void mapInputsOutputs(const ValueSet &Inputs, const ValueSet &Outputs,
                         InputToOutputMapTy &IOMap, OutputToInputMapTy &OIMap);

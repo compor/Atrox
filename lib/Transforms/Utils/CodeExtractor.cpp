@@ -531,6 +531,39 @@ void CodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
   }
 }
 
+void CodeExtractor::findGlobalInputsOutputs(ValueSet &Inputs,
+                                            ValueSet &Outputs) const {
+  llvm::SmallVector<GetElementPtrInst *, 16> geps;
+
+  for (BasicBlock *BB : Blocks) {
+    for (Instruction &II : *BB) {
+      if (auto *gep = llvm::dyn_cast<llvm::GetElementPtrInst>(&II)) {
+        geps.push_back(const_cast<llvm::GetElementPtrInst *>(gep));
+      }
+    }
+  }
+
+  geps.erase(std::remove_if(geps.begin(), geps.end(), [&](const auto &e) {
+    return !llvm::isa<llvm::GlobalVariable>(e->getPointerOperand());
+  }));
+
+  for (auto *gep : geps) {
+    for (auto *u : gep->users()) {
+      if (llvm::isa<llvm::StoreInst>(u)) {
+        Outputs.insert(gep->getPointerOperand());
+        break;
+      }
+    }
+
+    for (auto *u : gep->users()) {
+      if (!Outputs.count(gep) && llvm::isa<llvm::LoadInst>(u)) {
+        Inputs.insert(gep->getPointerOperand());
+        break;
+      }
+    }
+  }
+}
+
 void CodeExtractor::mapInputsOutputs(const ValueSet &Inputs,
                                      const ValueSet &Outputs,
                                      InputToOutputMapTy &IOMap,
@@ -1494,6 +1527,25 @@ Function *CodeExtractor::cloneCodeRegion() {
 
   // Find inputs to, outputs from the code region.
   findInputsOutputs(inputs, outputs, SinkingCands);
+
+  ValueSet gInputs, gOutputs;
+  findGlobalInputsOutputs(gInputs, gOutputs);
+
+  LLVM_DEBUG(dbgs() << "global inputs: \n";
+             for (auto *e
+                  : gInputs) { dbgs() << *e << '\n'; });
+
+  LLVM_DEBUG(dbgs() << "global outputs: \n";
+             for (auto *e
+                  : gOutputs) { dbgs() << *e << '\n'; });
+
+  for (auto *e : gInputs) {
+    inputs.insert(e);
+  }
+
+  for (auto *e : gOutputs) {
+    outputs.insert(e);
+  }
 
   // Now sink all instructions which only have non-phi uses inside the region
   for (auto *II : SinkingCands)
