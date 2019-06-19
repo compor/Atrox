@@ -28,16 +28,23 @@
 namespace atrox {
 
 bool MemoryAccessInfo::isRead(llvm::Value *V) {
-  auto *inst = llvm::dyn_cast<llvm::Instruction>(V);
+  LLVM_DEBUG(llvm::dbgs() << "examining read for: " << *V << '\n';);
 
-  for (auto *bb : Blocks) {
-    for (auto &i : *bb) {
-      auto mri = AA->getModRefInfo(&i, llvm::MemoryLocation::getOrNone(inst));
+  if (auto *inst = llvm::dyn_cast<llvm::Argument>(V)) {
+    // TODO more elaborate handling is required here
+    return true;
+  } else if (auto *inst = llvm::dyn_cast<llvm::Instruction>(V)) {
+    for (auto *bb : Blocks) {
+      for (auto &i : *bb) {
+        auto mri = AA->getModRefInfo(&i, llvm::MemoryLocation::getOrNone(inst));
 
-      if (llvm::isRefSet(mri) && !llvm::isModSet(mri)) {
-        return true;
+        if (llvm::isRefSet(mri) && !llvm::isModSet(mri)) {
+          return true;
+        }
       }
     }
+  } else {
+    llvm_unreachable("Unhandled value type");
   }
 
   return false;
