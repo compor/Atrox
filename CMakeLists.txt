@@ -152,12 +152,13 @@ set(LIB_SOURCES
   "lib/Analysis/IteratorRecognitionSelector.cpp"
   "lib/Analysis/WeightedIteratorRecognitionSelector.cpp"
   "lib/Analysis/MemoryAccessInfo.cpp"
-  "lib/Transforms/Utils/CodeExtractor.cpp"
   "lib/Analysis/Utils/PDGUtils.cpp"
   "lib/Analysis/Utils/ITRUtils.cpp"
   "lib/Exchange/JSONTransfer.cpp"
+  "lib/Transforms/DecomposeMultiDimArrayRefs.cpp"
   "lib/Transforms/BlockSeparator.cpp"
   "lib/Transforms/Passes/LoopBodyClonerPass.cpp"
+  "lib/Transforms/Utils/CodeExtractor.cpp"
   )
 
 set(LIB_NAME "LLVM${PRJ_NAME}Pass")
