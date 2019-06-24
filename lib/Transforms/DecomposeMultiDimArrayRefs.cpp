@@ -35,18 +35,17 @@
 namespace atrox {
 
 bool DecomposeMultiDimArrayRefs(llvm::GetElementPtrInst *GEP) {
-  if (!GEP) {
-    return false;
-  }
+  assert(GEP && "GEP instruction is null!");
+
+  LLVM_DEBUG(llvm::dbgs() << "decomposing: " << *GEP << '\n';);
 
   if (GEP->getNumIndices() < 2) {
+    LLVM_DEBUG(llvm::dbgs() << "GEP instruction already has 1 index\n";);
     return false;
   }
 
   llvm::Value *lastPtr = GEP->getPointerOperand();
   llvm::Instruction *insertPoint = GEP;
-
-  LLVM_DEBUG(llvm::dbgs() << "decomposing: " << *GEP << "\n";);
 
   unsigned levels = 0;
   llvm::Type *basicTy = nullptr;
@@ -59,8 +58,15 @@ bool DecomposeMultiDimArrayRefs(llvm::GetElementPtrInst *GEP) {
     levels++;
   }
 
-  LLVM_DEBUG(llvm::dbgs() << "basic type: " << *basicTy << '\n';);
-  LLVM_DEBUG(llvm::dbgs() << "indirection levels: " << levels << '\n';);
+  if (levels != GEP->getNumIndices()) {
+    // TODO check the relation with other composite type e.g. structs
+    LLVM_DEBUG(llvm::dbgs() << "GEP instruction does not step through arrays "
+                               "in all its indices\n";);
+    return false;
+  }
+
+  LLVM_DEBUG(llvm::dbgs() << "basic type: " << *basicTy << '\n'
+                          << "indirection levels: " << levels << '\n';);
 
   auto *ptrTy = llvm::PointerType::getUnqual(basicTy);
   std::vector<llvm::PointerType *> newTypes{ptrTy};
