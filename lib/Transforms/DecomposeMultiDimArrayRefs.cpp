@@ -79,6 +79,8 @@ bool DecomposeMultiDimArrayRefs(llvm::GetElementPtrInst *GEP) {
 
   lastPtr = llvm::CastInst::CreatePointerCast(lastPtr, newTypes[0], "ptrcast",
                                               insertPoint);
+
+  // this uses Value because the gep pointer may be a global variable
   std::vector<llvm::Value *> newInsts;
   newInsts.push_back(lastPtr);
 
@@ -100,6 +102,14 @@ bool DecomposeMultiDimArrayRefs(llvm::GetElementPtrInst *GEP) {
   }
 
   LLVM_DEBUG(for (auto *e : newInsts) { llvm::dbgs() << *e << '\n'; };);
+
+  if (auto *dbg = GEP->getMetadata("dbg")) {
+    for (auto *e : newInsts) {
+      if(auto *i = llvm::dyn_cast<llvm::Instruction>(e)) {
+        i->setMetadata("dbg", dbg);
+      }
+    }
+  }
 
   GEP->replaceAllUsesWith(newInsts.back());
   GEP->eraseFromParent();
