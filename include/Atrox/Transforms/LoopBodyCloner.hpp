@@ -80,6 +80,16 @@ public:
       CodeExtractor::OutputToInputMapTy oiMap;
       ce.mapInputsOutputs(inputs, outputs, ioMap, oiMap);
 
+      if (ITRInfo) {
+        auto infoOrError = ITRInfo.getValue()->getIteratorInfoFor(&L);
+        if (!infoOrError) {
+          LLVM_DEBUG(llvm::dbgs() << "No iterator info for loop\n";);
+        }
+
+        auto info = *infoOrError;
+        ReorderInputs(inputs, info);
+      }
+
       llvm::SmallVector<ArgDirection, 16> argDirs;
       MemoryAccessInfo mai{blocks, AA};
       GenerateArgDirection(inputs, outputs, oiMap, argDirs, &mai);
@@ -115,6 +125,7 @@ public:
       } else {
         auto infoOrError = ITRInfo.getValue()->getIteratorInfoFor(&L);
         if (!infoOrError) {
+          LLVM_DEBUG(llvm::dbgs() << "No iterator info for loop\n";);
         }
         auto info = *infoOrError;
 
