@@ -17,6 +17,9 @@
 #include "llvm/IR/IntrinsicInst.h"
 // using llvm::MemIntrinsic
 
+#include "llvm/IR/InstVisitor.h"
+// using llvm::InstVisitor
+
 namespace atrox {
 
 /// Utility proxy to wrap the common members of LoadInst and StoreInst.
@@ -249,6 +252,20 @@ private:
   }
   llvm::MemTransferInst *asMemTransferInst() const {
     return llvm::cast<llvm::MemTransferInst>(I);
+  }
+};
+
+//
+
+struct MemAccInstVisitor : public llvm::InstVisitor<MemAccInstVisitor> {
+  llvm::SmallVector<MemAccInst, 8> Accesses;
+
+  explicit MemAccInstVisitor() = default;
+
+  void visitInstruction(llvm::Instruction &I) {
+    if (MemAccInst::isa(I)) {
+      Accesses.push_back(MemAccInst{I});
+    }
   }
 };
 
