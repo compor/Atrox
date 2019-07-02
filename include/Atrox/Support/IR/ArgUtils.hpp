@@ -21,6 +21,8 @@
 #include "llvm/ADT/SetVector.h"
 // using llvm::SetVector
 
+#define DEBUG_TYPE "atrox-argutils"
+
 namespace llvm {
 class Value;
 } // namespace llvm
@@ -37,6 +39,9 @@ inline bool IsBidirectional(
   }
   return false;
 }
+
+bool ReorderInputs(llvm::SetVector<llvm::Value *> &Inputs,
+                   const iteratorrecognition::IteratorInfo &ITRInfo);
 
 void GenerateArgIteratorVariance(
     const llvm::SetVector<llvm::Value *> &Inputs,

@@ -13,7 +13,60 @@
 // using LLVM_DEBUG macro
 // using llvm::dbgs
 
+#include <algorithm>
+// using std::count_if
+// using std::find_if
+// using std::reverse
+
+#include <cassert>
+// using assert
+
 namespace atrox {
+
+bool ReorderInputs(llvm::SetVector<llvm::Value *> &Inputs,
+                   const iteratorrecognition::IteratorInfo &Info) {
+  bool changed = false;
+
+  auto n = std::count_if(Inputs.begin(), Inputs.end(), [&Info](auto *e) {
+    if (const auto *i = llvm::dyn_cast<const llvm::Instruction>(e)) {
+      return Info.isIterator(i);
+    }
+
+    return false;
+  });
+
+  assert(n == 1 && "Cannot handle more than 1 input iterators!");
+
+  auto found = std::find_if(Inputs.begin(), Inputs.end(), [&Info](auto *e) {
+    if (const auto *i = llvm::dyn_cast<const llvm::Instruction>(e)) {
+      return Info.isIterator(i);
+    }
+
+    return false;
+  });
+
+  assert(found != Inputs.end() &&
+         "There must be at least one iterator variable!");
+
+  if (found != Inputs.begin()) {
+    LLVM_DEBUG(llvm::dbgs() << "reordering inputs\n";);
+    auto *tmp = *found;
+    Inputs.erase(found);
+
+    auto rest = Inputs.takeVector();
+    std::reverse(rest.begin(), rest.end());
+    rest.push_back(tmp);
+    std::reverse(rest.begin(), rest.end());
+
+    Inputs.insert(rest.begin(), rest.end());
+
+    changed = true;
+
+    LLVM_DEBUG(for (auto *e : Inputs) { llvm::dbgs() << *e << '\n'; };);
+  }
+
+  return changed;
+}
 
 void GenerateArgIteratorVariance(
     const llvm::SetVector<llvm::Value *> &Inputs,
