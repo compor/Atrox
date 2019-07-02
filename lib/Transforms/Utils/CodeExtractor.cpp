@@ -1462,7 +1462,7 @@ void CodeExtractor::calculateNewCallTerminatorWeights(
       MDBuilder(TI->getContext()).createBranchWeights(BranchWeights));
 }
 
-Function *CodeExtractor::cloneCodeRegion() {
+Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
   if (!isEligible())
     return nullptr;
 
@@ -1490,7 +1490,6 @@ Function *CodeExtractor::cloneCodeRegion() {
     }
   }
 
-  ValueSet inputs, outputs;
   ValueSet SinkingCands, HoistingCands;
   BasicBlock *CommonExit = nullptr;
 
@@ -1526,7 +1525,9 @@ Function *CodeExtractor::cloneCodeRegion() {
   assert(HoistingCands.empty() || CommonExit);
 
   // Find inputs to, outputs from the code region.
-  findInputsOutputs(inputs, outputs, SinkingCands);
+  if (DetectInputsOutputs) {
+    findInputsOutputs(Inputs, Outputs, SinkingCands);
+  }
 
   ValueSet gInputs, gOutputs;
   findGlobalInputsOutputs(gInputs, gOutputs);
@@ -1540,11 +1541,11 @@ Function *CodeExtractor::cloneCodeRegion() {
                   : gOutputs) { dbgs() << *e << '\n'; });
 
   for (auto *e : gInputs) {
-    inputs.insert(e);
+    Inputs.insert(e);
   }
 
   for (auto *e : gOutputs) {
-    outputs.insert(e);
+    Outputs.insert(e);
   }
 
   // Now sink all instructions which only have non-phi uses inside the region
@@ -1565,13 +1566,13 @@ Function *CodeExtractor::cloneCodeRegion() {
   }
   auto *cloneHeader = cast_or_null<llvm::BasicBlock>(VMap[header]);
 
-  mapInputsOutputs(inputs, outputs, InputToOutputMap, OutputToInputMap);
+  mapInputsOutputs(Inputs, Outputs, InputToOutputMap, OutputToInputMap);
 
   auto *newFuncExit = BasicBlock::Create(header->getContext(), "exit");
 
   // Construct new function based on inputs/outputs & add allocas for all defs.
   Function *newFunction =
-      cloneFunction(inputs, outputs, cloneHeader, newFuncRoot, newFuncExit,
+      cloneFunction(Inputs, Outputs, cloneHeader, newFuncRoot, newFuncExit,
                     oldFunction, oldFunction->getParent());
 
   for (auto &inst : *newFuncExit) {

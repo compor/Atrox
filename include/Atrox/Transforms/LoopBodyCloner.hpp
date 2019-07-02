@@ -132,6 +132,8 @@ public:
         GenerateArgIteratorVariance(inputs, outputs, info, argIteratorVariance);
       }
 
+      ce.setInputs(inputs);
+      ce.setOutputs(outputs);
       auto *extractedFunc = ce.cloneCodeRegion();
       hasChanged |= extractedFunc ? true : false;
 

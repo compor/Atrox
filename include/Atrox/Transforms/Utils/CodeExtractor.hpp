@@ -79,6 +79,7 @@ private:
   ValueToValueMapTy VMap;
   OutputToInputMapTy OutputToInputMap;
   InputToOutputMapTy InputToOutputMap;
+  ValueSet Inputs, Outputs;
 
   // Bits of intermediate state computed at various phases of extraction.
   SetVector<BasicBlock *> Blocks;
@@ -120,13 +121,21 @@ public:
   /// returns false.
   Function *extractCodeRegion();
 
-  Function *cloneCodeRegion();
+  Function *cloneCodeRegion(bool DetectInputsOutputs = true);
 
   /// Test whether this code extractor is eligible.
   ///
   /// Based on the blocks used when constructing the code extractor,
   /// determine whether it is eligible for extraction.
   bool isEligible() const { return !Blocks.empty(); }
+
+  void setInputs(ValueSet &Inputs) {
+    this->Inputs.insert(Inputs.begin(), Inputs.end());
+  }
+
+  void setOutputs(ValueSet &Outputs) {
+    this->Outputs.insert(Outputs.begin(), Outputs.end());
+  }
 
   /// Compute the set of input values and output values for the code.
   ///
