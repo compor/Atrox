@@ -19,9 +19,6 @@
 // using llvm::ArrayType
 // using llvm::PointerType
 
-#include "llvm/ADT/ArrayRef.h"
-// using llvm::ArrayRef
-
 #include "llvm/Support/Debug.h"
 // using LLVM_DEBUG macro
 // using llvm::dbgs
@@ -83,19 +80,17 @@ bool DecomposeMultiDimArrayRefs(llvm::GetElementPtrInst *GEP) {
   // this uses Value because the gep pointer may be a global variable
   std::vector<llvm::Value *> newInsts;
   newInsts.push_back(lastPtr);
+  std::vector<llvm::Value *> indices{GEP->idx_begin(), GEP->idx_end()};
 
-  auto idx = GEP->idx_begin();
-  for (auto i = 0u; i < GEP->getNumIndices(); ++i, ++idx) {
-    llvm::ArrayRef<llvm::Value *> indices{*idx};
-
+  for (auto i = 0u; i < indices.size(); ++i) {
     lastPtr =
         llvm::GetElementPtrInst::Create(newTypes[i]->getElementType(), lastPtr,
-                                        indices, "lastptr", insertPoint);
+                                        indices[i], "lastptr", insertPoint);
     newInsts.push_back(lastPtr);
 
     // do not load the contents of the last ptr,
     // since we are replacing its uses later
-    if (i < GEP->getNumIndices() - 1) {
+    if (i < indices.size() - 1) {
       lastPtr = new llvm::LoadInst(lastPtr, "ptrload", insertPoint);
       newInsts.push_back(lastPtr);
     }
@@ -105,7 +100,7 @@ bool DecomposeMultiDimArrayRefs(llvm::GetElementPtrInst *GEP) {
 
   if (auto *dbg = GEP->getMetadata("dbg")) {
     for (auto *e : newInsts) {
-      if(auto *i = llvm::dyn_cast<llvm::Instruction>(e)) {
+      if (auto *i = llvm::dyn_cast<llvm::Instruction>(e)) {
         i->setMetadata("dbg", dbg);
       }
     }
