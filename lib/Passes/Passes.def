@@ -4,3 +4,9 @@
 MODULE_PASS("atrox-loop-body-clone", atrox::LoopBodyClonerPass())
 #undef MODULE_PASS
 
+#ifndef FUNCTION_PASS
+#define FUNCTION_PASS(NAME, CREATE_PASS)
+#endif
+FUNCTION_PASS("atrox-decompose-array-refs", atrox::DecomposeMultiDimArrayRefsPass())
+#undef FUNCTION_PASS
+
