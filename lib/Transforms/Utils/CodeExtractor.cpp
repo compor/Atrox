@@ -14,7 +14,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "Atrox/Transforms/Utils/CodeExtractor.hpp"
-//#include "llvm/Transforms/Utils/CodeExtractor.h"
+
+#include "Atrox/Transforms/DecomposeMultiDimArrayRefs.hpp"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -241,7 +242,8 @@ CodeExtractor::CodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT,
                              bool AllowAlloca)
     : DT(DT), AggregateArgs(AggregateArgs || AggregateArgsOpt), BFI(BFI),
       BPI(BPI), AllowVarArgs(AllowVarArgs),
-      Blocks(buildExtractionBlockSet(BBs, DT, AllowVarArgs, AllowAlloca)) {}
+      Blocks(buildExtractionBlockSet(BBs, DT, AllowVarArgs, AllowAlloca)),
+      Accesses(nullptr) {}
 
 CodeExtractor::CodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs,
                              BlockFrequencyInfo *BFI,
@@ -250,7 +252,8 @@ CodeExtractor::CodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs,
       BPI(BPI), AllowVarArgs(false),
       Blocks(buildExtractionBlockSet(L.getBlocks(), &DT,
                                      /* AllowVarArgs */ false,
-                                     /* AllowAlloca */ false)) {}
+                                     /* AllowAlloca */ false)),
+      Accesses(nullptr) {}
 
 /// definedInRegion - Return true if the specified value is defined in the
 /// extracted region.
@@ -1587,6 +1590,20 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
   remapCloneBlocks();
 
   moveBlocksToFunction(CloneBlocks, newFunction);
+
+  for (auto &e : Accesses->Accesses) {
+    auto *ptr = e.getPointerOperand();
+
+    llvm::SmallPtrSet<llvm::GetElementPtrInst *, 8> geps;
+    if (ptr && llvm::isa<llvm::GetElementPtrInst>(ptr)) {
+      auto &cgep = *VMap[ptr];
+      geps.insert(llvm::dyn_cast<llvm::GetElementPtrInst>(&cgep));
+    }
+
+    for (auto *gep : geps) {
+      DecomposeMultiDimArrayRefs(gep);
+    }
+  }
 
   // Propagate personality info to the new function if there is one.
   if (oldFunction->hasPersonalityFn())

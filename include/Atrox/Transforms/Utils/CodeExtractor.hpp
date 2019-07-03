@@ -15,6 +15,8 @@
 #ifndef LLVM_TRANSFORMS_UTILS_CODEEXTRACTOR_H
 #define LLVM_TRANSFORMS_UTILS_CODEEXTRACTOR_H
 
+#include "Atrox/Support/MemAccInst.hpp"
+
 #include "Atrox/Support/IR/ArgDirection.hpp"
 
 #include "Atrox/Support/IR/ArgUtils.hpp"
@@ -83,6 +85,7 @@ private:
 
   // Bits of intermediate state computed at various phases of extraction.
   SetVector<BasicBlock *> Blocks;
+  MemAccInstVisitor *Accesses;
   SmallVector<BasicBlock *, 32> CloneBlocks;
   unsigned NumExitBlocks = std::numeric_limits<unsigned>::max();
   Type *RetTy;
@@ -136,6 +139,8 @@ public:
   void setOutputs(ValueSet &Outputs) {
     this->Outputs.insert(Outputs.begin(), Outputs.end());
   }
+
+  void setAccesses(MemAccInstVisitor *Accesses) { this->Accesses = Accesses; }
 
   /// Compute the set of input values and output values for the code.
   ///

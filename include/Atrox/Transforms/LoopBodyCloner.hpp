@@ -94,6 +94,9 @@ public:
       MemoryAccessInfo mai{blocks, AA};
       GenerateArgDirection(inputs, outputs, oiMap, argDirs, &mai);
 
+      MemAccInstVisitor accesses;
+      accesses.visit(blocks.begin(), blocks.end());
+
 #if !defined(NDEBUG)
       LLVM_DEBUG({
         llvm::dbgs() << "inputs: " << inputs.size() << "\n";
@@ -134,6 +137,7 @@ public:
 
       ce.setInputs(inputs);
       ce.setOutputs(outputs);
+      ce.setAccesses(&accesses);
       auto *extractedFunc = ce.cloneCodeRegion();
       hasChanged |= extractedFunc ? true : false;
 
