@@ -20,6 +20,9 @@
 #include "llvm/IR/InstVisitor.h"
 // using llvm::InstVisitor
 
+#include "llvm/ADT/SmallVector.h"
+// using llvm::SmallVector
+
 namespace atrox {
 
 /// Utility proxy to wrap the common members of LoadInst and StoreInst.
