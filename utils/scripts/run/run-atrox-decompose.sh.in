@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib"
+
+FILENAME=${1}
+OUTPUT_FILENAME=${FILENAME%.*}-atrox-decomp.ll
+
+opt \
+  -load @Pedigree_LOCATION@ \
+  -load @IteratorRecognition_LOCATION@ \
+  -load ${LIB_DIR}/@PASS_SO_NAME@ \
+  -S \
+  -atrox-decompose-array-refs-pass \
+  -debug-only=atrox-decompose-array-refs \
+  -debug-only=atrox-decomp-array-refs \
+  -o ${OUTPUT_FILENAME} \
+  ${FILENAME}
+
