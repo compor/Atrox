@@ -27,7 +27,7 @@
 #include <vector>
 // using std::vector
 
-#define DEBUG_TYPE "atrox-decomp-array-refs"
+#define DEBUG_TYPE "atrox-decompose-array-refs"
 
 namespace atrox {
 
