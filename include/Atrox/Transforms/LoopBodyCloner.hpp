@@ -138,7 +138,7 @@ public:
       ce.setInputs(inputs);
       ce.setOutputs(outputs);
       ce.setAccesses(&accesses);
-      auto *extractedFunc = ce.cloneCodeRegion();
+      auto *extractedFunc = ce.cloneCodeRegion(false);
       hasChanged |= extractedFunc ? true : false;
 
       if (ShouldStoreInfo && extractedFunc) {
