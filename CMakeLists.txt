@@ -149,6 +149,7 @@ set(LIB_SOURCES
   "lib/Analysis/NaiveSelector.cpp"
   "lib/Analysis/PayloadWeights.cpp"
   "lib/Analysis/PayloadTree.cpp"
+  "lib/Analysis/LoopBoundsAnalyzer.cpp"
   "lib/Analysis/IteratorRecognitionSelector.cpp"
   "lib/Analysis/WeightedIteratorRecognitionSelector.cpp"
   "lib/Analysis/MemoryAccessInfo.cpp"

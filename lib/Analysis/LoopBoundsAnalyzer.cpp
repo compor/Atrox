@@ -1,0 +1,199 @@
+//
+//
+//
+
+#pragma once
+
+#include "Atrox/Config.hpp"
+
+#include "Atrox/Analysis/LoopBoundsAnalyzer.hpp"
+
+#include "llvm/Analysis/ScalarEvolution.h"
+// using llvm::ScalarEvolution
+// using llvm::SCEV
+
+#include "llvm/Analysis/ScalarEvolutionExpressions.h"
+// using llvm::SCEVConstant
+// using llvm::SCEVAddRecExpr
+
+#include "llvm/ADT/SmallPtrSet.h"
+// using llvm::SmallPtrSetImpl
+// using llvm::SmallPtrSet
+
+#include "llvm/ADT/SmallVector.h"
+// using llvm::SmallVector
+
+#include "llvm/Support/Debug.h"
+// using LLVM_DEBUG macro
+// using llvm::dbgs
+// using llvm::errs
+
+#include <map>
+// using std::map
+
+#include <cassert>
+// using cassert
+
+#define DEBUG_TYPE "atrox-lba"
+
+namespace {
+
+llvm::PHINode *GetInductionVariable(llvm::Loop *L, llvm::ScalarEvolution *SE) {
+  llvm::PHINode *InnerIndexVar = L->getCanonicalInductionVariable();
+
+  if (InnerIndexVar)
+    return InnerIndexVar;
+
+  if (L->getLoopLatch() == nullptr || L->getLoopPredecessor() == nullptr)
+    return nullptr;
+
+  for (llvm::BasicBlock::iterator I = L->getHeader()->begin();
+       llvm::isa<llvm::PHINode>(I); ++I) {
+    llvm::PHINode *PhiVar = llvm::cast<llvm::PHINode>(I);
+    llvm::Type *PhiTy = PhiVar->getType();
+
+    if (!PhiTy->isIntegerTy() && !PhiTy->isFloatingPointTy() &&
+        !PhiTy->isPointerTy())
+      return nullptr;
+
+    const llvm::SCEVAddRecExpr *AddRec =
+        llvm::dyn_cast<llvm::SCEVAddRecExpr>(SE->getSCEV(PhiVar));
+
+    if (!AddRec || !AddRec->isAffine())
+      continue;
+    const llvm::SCEV *Step = AddRec->getStepRecurrence(*SE);
+
+    if (!llvm::isa<llvm::SCEVConstant>(Step))
+      continue;
+
+    // FIXME handle loops with more than one induction variable
+
+    return PhiVar;
+  }
+
+  return nullptr;
+}
+
+} // namespace
+
+namespace atrox {
+
+llvm::Value *GetBackedgeCondition(llvm::Loop *L) {
+  llvm::Value *cond = nullptr;
+
+  assert(L->getExitingBlock() && "Loop does not have a single exiting block!");
+
+  if (auto *exiting = L->getExitingBlock()) {
+    if (auto bi = llvm::dyn_cast<llvm::BranchInst>(exiting->getTerminator())) {
+      assert(bi->isConditional() &&
+             "Loop exiting block does not have conditional!");
+
+      cond = bi->getCondition();
+    }
+  }
+
+  return cond;
+}
+
+bool LoopBoundsAnalyzer::isValueUsedInLoopNestConditions(
+    llvm::Value *V, llvm::Loop *L,
+    llvm::SmallPtrSetImpl<llvm::Instruction *> *Conditions) {
+  auto loops = L->getSubLoops();
+  loops.push_back(L);
+
+  for (auto *e : loops) {
+    if (auto *be = llvm::dyn_cast_or_null<llvm::Instruction>(
+            GetBackedgeCondition(e))) {
+      llvm::dbgs() << "condition: " << *be << '\n';
+
+      for (auto &op : be->operands()) {
+        if (op.get() == V) {
+          if (!Conditions) {
+            return true;
+          }
+
+          Conditions->insert(be);
+          break;
+        }
+      }
+    }
+  }
+
+  return Conditions ? !Conditions->empty() : false;
+}
+
+bool LoopBoundsAnalyzer::isValueUsedOnlyInLoopNestConditions(
+    llvm::Value *V, llvm::Loop *L,
+    const llvm::SmallPtrSetImpl<llvm::BasicBlock *> &Interesting) {
+  auto loops = L->getSubLoops();
+  loops.push_back(L);
+
+  llvm::SmallPtrSet<llvm::Instruction *, 8> cond;
+  bool used = isValueUsedInLoopNestConditions(V, L, &cond);
+
+  if (used) {
+    for (auto *u : V->users()) {
+      if (auto *i = llvm::dyn_cast<llvm::Instruction>(u)) {
+        if (Interesting.count(i->getParent()) && !cond.count(i)) {
+          return false;
+        }
+      }
+    }
+  }
+
+  return used ? true : false;
+}
+
+bool LoopBoundsAnalyzer::analyze() {
+  bool isAnalyzable = false;
+
+  LLVM_DEBUG(llvm::dbgs() << "analyzing loop with header: "
+                          << L->getHeader()->getName() << '\n';);
+
+  llvm::SmallVector<llvm::Loop *, 8> workList;
+  for (auto *e : LI->getLoopsInPreorder()) {
+    if (L->contains(e->getHeader())) {
+      workList.push_back(e);
+    }
+  }
+
+  for (auto *e : workList) {
+    LLVM_DEBUG(llvm::dbgs() << "subloop with header: "
+                            << e->getHeader()->getName() << '\n';);
+
+    auto found = LoopBoundsMap.emplace(std::make_pair(
+        e, LoopIterationSpaceInfo{nullptr, nullptr, nullptr, 0u}));
+
+    // induction variable
+    if (auto *ind = GetInductionVariable(e, SE)) {
+      LLVM_DEBUG(llvm::dbgs() << "induction variable: " << *ind << '\n';);
+
+      auto *indAR =
+          llvm::dyn_cast<llvm::SCEVAddRecExpr>(SE->getSCEVAtScope(ind, e));
+
+      if (!indAR) {
+        LLVM_DEBUG(llvm::dbgs() << "induction variable is not an add "
+                                   "recurrent expression\n";);
+        continue;
+      }
+
+      auto &lisi = found.first->second;
+
+      lisi.InductionVariable = ind;
+      lisi.Start = const_cast<llvm::SCEV *>(indAR->getStart());
+      LLVM_DEBUG(llvm::dbgs() << "induction start: " << *lisi.Start << '\n';);
+
+      lisi.End = const_cast<llvm::SCEV *>(
+          indAR->evaluateAtIteration(SE->getConstant(llvm::APInt{64, 5}), *SE));
+      LLVM_DEBUG(llvm::dbgs() << "induction end: " << *lisi.End << '\n';);
+
+      lisi.TripCount = SE->getSmallConstantMaxTripCount(e);
+      LLVM_DEBUG(llvm::dbgs() << "trip count: " << lisi.TripCount << '\n';);
+    }
+  }
+
+  return isAnalyzable;
+}
+
+} // namespace atrox
+
