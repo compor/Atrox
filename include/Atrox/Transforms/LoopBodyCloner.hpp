@@ -10,6 +10,8 @@
 
 #include "Atrox/Support/IR/ArgUtils.hpp"
 
+#include "Atrox/Analysis/LoopBoundsAnalyzer.hpp"
+
 #include "Atrox/Analysis/MemoryAccessInfo.hpp"
 
 #include "Atrox/Exchange/Info.hpp"
@@ -91,6 +93,18 @@ public:
 
         auto info = *infoOrError;
         ReorderInputs(inputs, info);
+      }
+
+      {
+        LoopBoundsAnalyzer lba{L, LI, *SE};
+
+        for (auto *v : inputs) {
+          llvm::SmallPtrSet<llvm::BasicBlock *, 8> interesting{blocks.begin(),
+                                                               blocks.end()};
+          if (lba.isValueUsedOnlyInLoopNestConditions(v, &L, interesting)) {
+            llvm::dbgs() << "$$$ " << *v << '\n';
+          }
+        }
       }
 
       llvm::SmallVector<ArgDirection, 16> argDirs;
