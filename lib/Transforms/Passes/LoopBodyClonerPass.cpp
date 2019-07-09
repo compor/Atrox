@@ -34,6 +34,10 @@
 #include "llvm/Pass.h"
 // using llvm::RegisterPass
 
+#include "llvm/Analysis/ScalarEvolution.h"
+// using llvm::ScalarEvolutionWrapperPass
+// using llvm::ScalarEvolution
+
 #include "llvm/Analysis/AliasAnalysis.h"
 // using llvm::AAResultsWrapperPass
 // using llvm::AAResults
@@ -150,6 +154,7 @@ LoopBodyClonerPass::LoopBodyClonerPass() {
 
 bool LoopBodyClonerPass::perform(
     llvm::Module &M,
+    std::function<llvm::ScalarEvolution &(llvm::Function &)> &GetSE,
     std::function<llvm::MemoryDependenceResults &(llvm::Function &)> &GetMDR,
     std::function<llvm::AAResults &(llvm::Function &)> &GetAA) {
   bool hasChanged = false;
@@ -197,6 +202,7 @@ bool LoopBodyClonerPass::perform(
     llvm::LoopInfo li{dt};
 
     auto itrInfo = BuildITRInfo(li, *BuildPDG(func, &GetMDR(func)));
+    auto &SE = GetSE(func);
     auto &AA = GetAA(func);
 
     // NOTE
@@ -233,14 +239,14 @@ bool LoopBodyClonerPass::perform(
     if (SelectionStrategyOption ==
         SelectionStrategy::IteratorRecognitionBased) {
       IteratorRecognitionSelector s{*itrInfo};
-      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo, &AA);
+      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo, &SE, &AA);
     } else if (SelectionStrategyOption ==
                SelectionStrategy::WeightedIteratorRecognitionBased) {
       WeightedIteratorRecognitionSelector s{*itrInfo};
-      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo, &AA);
+      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo, &SE, &AA);
     } else {
       NaiveSelector s;
-      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo, &AA);
+      hasChanged |= lpc.cloneLoops(li, s, &*itrInfo, &SE, &AA);
     }
 
     if (hasChanged && ExportResults) {
@@ -261,6 +267,11 @@ LoopBodyClonerPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
   auto &FAM =
       MAM.getResult<llvm::FunctionAnalysisManagerModuleProxy>(M).getManager();
 
+  std::function<llvm::ScalarEvolution &(llvm::Function &)> GetSE =
+      [&](llvm::Function &F) -> llvm::ScalarEvolution & {
+    return FAM.getResult<llvm::ScalarEvolutionAnalysis>(F);
+  };
+
   std::function<llvm::MemoryDependenceResults &(llvm::Function &)> GetMDR =
       [&](llvm::Function &F) -> llvm::MemoryDependenceResults & {
     return FAM.getResult<llvm::MemoryDependenceAnalysis>(F);
@@ -271,7 +282,7 @@ LoopBodyClonerPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
     return FAM.getResult<llvm::AAManager>(F);
   };
 
-  bool hasChanged = perform(M, GetMDR, GetAA);
+  bool hasChanged = perform(M, GetSE, GetMDR, GetAA);
 
   return hasChanged ? llvm::PreservedAnalyses::all()
                     : llvm::PreservedAnalyses::none();
@@ -280,6 +291,7 @@ LoopBodyClonerPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
 // legacy passmanager pass
 
 void LoopBodyClonerLegacyPass::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+  AU.addRequired<llvm::ScalarEvolutionWrapperPass>();
   AU.addRequiredTransitive<llvm::AAResultsWrapperPass>();
   AU.addRequired<llvm::MemoryDependenceWrapperPass>();
   AU.setPreservesAll();
@@ -287,6 +299,11 @@ void LoopBodyClonerLegacyPass::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
 
 bool LoopBodyClonerLegacyPass::runOnModule(llvm::Module &M) {
   LoopBodyClonerPass pass;
+
+  std::function<llvm::ScalarEvolution &(llvm::Function &)> GetSE =
+      [this](llvm::Function &F) -> llvm::ScalarEvolution & {
+    return this->getAnalysis<llvm::ScalarEvolutionWrapperPass>(F).getSE();
+  };
 
   std::function<llvm::MemoryDependenceResults &(llvm::Function &)> GetMDR =
       [this](llvm::Function &F) -> llvm::MemoryDependenceResults & {
@@ -298,7 +315,7 @@ bool LoopBodyClonerLegacyPass::runOnModule(llvm::Module &M) {
     return this->getAnalysis<AAResultsWrapperPass>(F).getAAResults();
   };
 
-  return pass.perform(M, GetMDR, GetAA);
+  return pass.perform(M, GetSE, GetMDR, GetAA);
 }
 
 } // namespace atrox

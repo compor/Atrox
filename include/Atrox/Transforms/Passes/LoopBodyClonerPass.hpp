@@ -9,6 +9,9 @@
 #include "llvm/Pass.h"
 // using llvm::ModulePass
 
+#include "llvm/Analysis/ScalarEvolution.h"
+// using llvm::ScalarEvolution
+
 #include "llvm/Analysis/MemoryDependenceAnalysis.h"
 // using llvm::MemoryDependenceResults
 
@@ -37,6 +40,7 @@ public:
 
   bool perform(
       llvm::Module &M,
+      std::function<llvm::ScalarEvolution &(llvm::Function &)> &GetSE,
       std::function<llvm::MemoryDependenceResults &(llvm::Function &)> &GetMDR,
       std::function<llvm::AAResults &(llvm::Function &)> &GetAA);
 

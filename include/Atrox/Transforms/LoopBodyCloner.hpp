@@ -25,6 +25,9 @@
 #include "llvm/IR/Dominators.h"
 // using llvm::DominatorTree
 
+#include "llvm/Analysis/ScalarEvolution.h"
+// using llvm::ScalarEvolution
+
 #include "llvm/Analysis/LoopInfo.h"
 // using llvm::LoopInfo
 // using llvm::Loop
@@ -64,7 +67,7 @@ public:
   bool cloneLoop(
       llvm::Loop &L, llvm::LoopInfo &LI, T &Selector,
       llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *> ITRInfo,
-      llvm::AAResults *AA = nullptr) {
+      llvm::ScalarEvolution *SE = nullptr, llvm::AAResults *AA = nullptr) {
     bool hasChanged = false;
 
     llvm::SmallVector<llvm::BasicBlock *, 32> blocks;
@@ -162,11 +165,11 @@ public:
   bool cloneLoops(
       llvm::LoopInfo &LI, T &Selector,
       llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *> ITRInfo,
-      llvm::AAResults *AA = nullptr) {
+      llvm::ScalarEvolution *SE = nullptr, llvm::AAResults *AA = nullptr) {
     bool hasChanged = false;
 
     for (auto *curLoop : LI) {
-      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfo, AA);
+      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfo, SE, AA);
     }
 
     return hasChanged;
