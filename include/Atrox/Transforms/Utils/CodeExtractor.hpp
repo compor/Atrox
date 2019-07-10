@@ -82,6 +82,7 @@ private:
   OutputToInputMapTy OutputToInputMap;
   InputToOutputMapTy InputToOutputMap;
   ValueSet Inputs, Outputs;
+  ValueSet StackAllocas;
 
   // Bits of intermediate state computed at various phases of extraction.
   SetVector<BasicBlock *> Blocks;
@@ -133,11 +134,18 @@ public:
   bool isEligible() const { return !Blocks.empty(); }
 
   void setInputs(ValueSet &Inputs) {
+    this->Inputs.clear();
     this->Inputs.insert(Inputs.begin(), Inputs.end());
   }
 
   void setOutputs(ValueSet &Outputs) {
+    this->Outputs.clear();
     this->Outputs.insert(Outputs.begin(), Outputs.end());
+  }
+
+  void setStackAllocas(ValueSet &StackAllocas) {
+    this->StackAllocas.clear();
+    this->StackAllocas.insert(StackAllocas.begin(), StackAllocas.end());
   }
 
   void setAccesses(MemAccInstVisitor *Accesses) { this->Accesses = Accesses; }

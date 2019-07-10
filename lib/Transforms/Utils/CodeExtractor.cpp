@@ -920,6 +920,26 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
       AI->setName(outputs[i]->getName() + ".out");
   }
 
+  auto &DL = newFunction->getParent()->getDataLayout();
+  for (auto *e : StackAllocas) {
+    auto *cloneAlloca =
+        new llvm::AllocaInst(e->getType(), DL.getAllocaAddrSpace(), nullptr, "",
+                             newRootNode->getTerminator());
+    auto *loadClone =
+        new llvm::LoadInst(cloneAlloca, "cond", newRootNode->getTerminator());
+
+    std::vector<User *> Users(e->user_begin(), e->user_end());
+    for (User *use : Users) {
+      if (Instruction *inst = dyn_cast<Instruction>(use)) {
+        auto found = std::find(CloneBlocks.begin(), CloneBlocks.end(),
+                               inst->getParent());
+        if (found != CloneBlocks.end()) {
+          inst->replaceUsesOfWith(e, loadClone);
+        }
+      }
+    }
+  }
+
   // Set entry block successor to the clone blocks header
   auto *term = dyn_cast<BranchInst>(newRootNode->getTerminator());
   term->setSuccessor(0, header);
@@ -1529,6 +1549,9 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
 
   // Find inputs to, outputs from the code region.
   if (DetectInputsOutputs) {
+    Inputs.clear();
+    Outputs.clear();
+    SinkingCands.clear();
     findInputsOutputs(Inputs, Outputs, SinkingCands);
   }
 

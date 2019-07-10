@@ -95,6 +95,7 @@ public:
         ReorderInputs(inputs, info);
       }
 
+      llvm::SetVector<llvm::Value *> toStackAllocate;
       {
         LoopBoundsAnalyzer lba{L, LI, *SE};
         llvm::SmallPtrSet<llvm::BasicBlock *, 8> interesting{blocks.begin(),
@@ -102,7 +103,12 @@ public:
 
         for (auto *v : inputs) {
           if (lba.isValueUsedOnlyInLoopNestConditions(v, &L, interesting)) {
+            toStackAllocate.insert(v);
           }
+        }
+
+        for (auto *e : toStackAllocate) {
+          inputs.remove(e);
         }
       }
 
@@ -117,10 +123,15 @@ public:
       LLVM_DEBUG({
         llvm::dbgs() << "inputs: " << inputs.size() << "\n";
         llvm::dbgs() << "outputs: " << outputs.size() << "\n";
-        for (llvm::Value *value : inputs)
-          llvm::dbgs() << "    value used in func: " << *value << "\n";
-        for (llvm::Value *output : outputs)
-          llvm::dbgs() << "value used out of func: " << *output << "\n";
+        for (llvm::Value *e : inputs) {
+          llvm::dbgs() << "    value used in func: " << *e << "\n";
+        }
+        for (llvm::Value *e : outputs) {
+          llvm::dbgs() << "value used out of func: " << *e << "\n";
+        }
+        for (llvm::Value *e : toStackAllocate) {
+          llvm::dbgs() << " to be stack allocated: " << *e << "\n";
+        }
       });
 
       for (const auto &e : ioMap) {
@@ -153,6 +164,7 @@ public:
 
       ce.setInputs(inputs);
       ce.setOutputs(outputs);
+      ce.setStackAllocas(toStackAllocate);
       ce.setAccesses(&accesses);
       auto *extractedFunc = ce.cloneCodeRegion(false);
       hasChanged |= extractedFunc ? true : false;
