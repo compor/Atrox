@@ -97,12 +97,11 @@ public:
 
       {
         LoopBoundsAnalyzer lba{L, LI, *SE};
+        llvm::SmallPtrSet<llvm::BasicBlock *, 8> interesting{blocks.begin(),
+                                                             blocks.end()};
 
         for (auto *v : inputs) {
-          llvm::SmallPtrSet<llvm::BasicBlock *, 8> interesting{blocks.begin(),
-                                                               blocks.end()};
           if (lba.isValueUsedOnlyInLoopNestConditions(v, &L, interesting)) {
-            llvm::dbgs() << "$$$ " << *v << '\n';
           }
         }
       }

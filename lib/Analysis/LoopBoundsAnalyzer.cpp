@@ -111,7 +111,7 @@ bool LoopBoundsAnalyzer::isValueUsedInLoopNestConditions(
   for (auto *e : loops) {
     if (auto *be = llvm::dyn_cast_or_null<llvm::Instruction>(
             GetBackedgeCondition(e))) {
-      llvm::dbgs() << "condition: " << *be << '\n';
+     LLVM_DEBUG(llvm::dbgs() << "condition: " << *be << '\n';);
 
       for (auto &op : be->operands()) {
         if (op.get() == V) {
