@@ -99,6 +99,13 @@ bool LoopBoundsAnalyzer::isValueUsedInLoopNestConditions(
     llvm::Value *V, llvm::Loop *L,
     llvm::SmallPtrSetImpl<llvm::Instruction *> *Conditions) {
   auto loops = L->getSubLoops();
+
+  for (auto *e : loops) {
+    for (auto *s : e->getSubLoops()) {
+      loops.push_back(s);
+    }
+  }
+
   loops.push_back(L);
 
   for (auto *e : loops) {
