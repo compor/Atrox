@@ -31,6 +31,39 @@
 
 namespace atrox {
 
+llvm::Type *
+GetDecomposedMultiDimArrayType(const llvm::PointerType *PtrTy,
+                               llvm::SmallVectorImpl<llvm::Type *> &NewTypes) {
+  if (!PtrTy) {
+    return nullptr;
+  }
+
+  unsigned levels = 0;
+
+  auto *elemTy = PtrTy->getElementType();
+  levels++;
+
+  llvm::Type *basicTy = nullptr;
+  while (auto *arrayTy = llvm::dyn_cast<llvm::ArrayType>(elemTy)) {
+    basicTy = elemTy = arrayTy->getElementType();
+    levels++;
+  }
+
+  LLVM_DEBUG(llvm::dbgs() << "basic type: " << *basicTy << '\n'
+                          << "indirection levels: " << levels << '\n';);
+
+  auto *ptrTy = llvm::PointerType::getUnqual(basicTy);
+  NewTypes.push_back(ptrTy);
+
+  for (auto i = 1u; i < levels; ++i) {
+    NewTypes.push_back(llvm::PointerType::getUnqual(NewTypes.back()));
+  }
+
+  std::reverse(NewTypes.begin(), NewTypes.end());
+
+  return basicTy;
+}
+
 bool DecomposeMultiDimArrayRefs(llvm::GetElementPtrInst *GEP) {
   assert(GEP && "GEP instruction is null!");
 
@@ -43,36 +76,18 @@ bool DecomposeMultiDimArrayRefs(llvm::GetElementPtrInst *GEP) {
 
   llvm::Value *lastPtr = GEP->getPointerOperand();
   llvm::Instruction *insertPoint = GEP;
+  llvm::SmallVector<llvm::Type *, 8> newTypes;
 
-  unsigned levels = 0;
-  llvm::Type *basicTy = nullptr;
-  auto *elemTy = llvm::dyn_cast<llvm::PointerType>(GEP->getPointerOperandType())
-                     ->getElementType();
-  levels++;
+  GetDecomposedMultiDimArrayType(
+      llvm::dyn_cast<llvm::PointerType>(GEP->getPointerOperandType()),
+      newTypes);
 
-  while (auto *arrayTy = llvm::dyn_cast<llvm::ArrayType>(elemTy)) {
-    basicTy = elemTy = arrayTy->getElementType();
-    levels++;
-  }
-
-  if (levels != GEP->getNumIndices()) {
+  if (newTypes.size() != GEP->getNumIndices()) {
     // TODO check the relation with other composite type e.g. structs
     LLVM_DEBUG(llvm::dbgs() << "GEP instruction does not step through arrays "
                                "in all its indices\n";);
     return false;
   }
-
-  LLVM_DEBUG(llvm::dbgs() << "basic type: " << *basicTy << '\n'
-                          << "indirection levels: " << levels << '\n';);
-
-  auto *ptrTy = llvm::PointerType::getUnqual(basicTy);
-  std::vector<llvm::PointerType *> newTypes{ptrTy};
-
-  for (auto i = 1u; i < levels; ++i) {
-    newTypes.push_back(llvm::PointerType::getUnqual(newTypes.back()));
-  }
-
-  std::reverse(newTypes.begin(), newTypes.end());
 
   lastPtr = llvm::CastInst::CreatePointerCast(lastPtr, newTypes[0], "ptrcast",
                                               insertPoint);
@@ -83,9 +98,10 @@ bool DecomposeMultiDimArrayRefs(llvm::GetElementPtrInst *GEP) {
   std::vector<llvm::Value *> indices{GEP->idx_begin(), GEP->idx_end()};
 
   for (auto i = 0u; i < indices.size(); ++i) {
-    lastPtr =
-        llvm::GetElementPtrInst::Create(newTypes[i]->getElementType(), lastPtr,
-                                        indices[i], "lastptr", insertPoint);
+    auto *elemTy =
+        llvm::dyn_cast<llvm::PointerType>(newTypes[i])->getElementType();
+    lastPtr = llvm::GetElementPtrInst::Create(elemTy, lastPtr, indices[i],
+                                              "lastptr", insertPoint);
     newInsts.push_back(lastPtr);
 
     // do not load the contents of the last ptr,
