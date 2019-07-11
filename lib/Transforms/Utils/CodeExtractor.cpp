@@ -1624,7 +1624,7 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
     }
 
     for (auto *gep : geps) {
-      DecomposeMultiDimArrayRefs(gep);
+      FlattenMultiDimArrayIndices(gep);
     }
   }
 

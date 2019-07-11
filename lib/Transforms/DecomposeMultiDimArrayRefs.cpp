@@ -138,13 +138,14 @@ bool FlattenMultiDimArrayIndices(llvm::GetElementPtrInst *GEP) {
   llvm::IRBuilder<> builder{GEP};
   changed = true;
 
-  for (auto i = 0; i < scaledIndices.size(); ++i) {
+  for (size_t i = 0; i < scaledIndices.size(); ++i) {
     scaledIndices[i] = builder.CreateMul(
         indices[i], builder.getInt64(products[i]), "scaled.idx");
   }
 
-  for (auto i = 1; i < scaledIndices.size(); ++i) {
-    summedIndices.push_back(builder.CreateAdd(scaledIndices[i - 1],
+  summedIndices.push_back(scaledIndices[0]);
+  for (size_t i = 1; i < scaledIndices.size(); ++i) {
+    summedIndices.push_back(builder.CreateAdd(summedIndices[i - 1],
                                               scaledIndices[i], "summed.idx"));
   }
 
