@@ -83,6 +83,11 @@ static cl::opt<bool> AggregateArgsOpt(
     "atrox-aggregate-extracted-args", cl::Hidden,
     cl::desc("Aggregate arguments to code-extracted functions"));
 
+static cl::opt<bool>
+    FlattenArrayAccesses("atrox-flatten-array-accesses", cl::Hidden,
+                         cl::init(false),
+                         cl::desc("Flatten multi-dimensional array accesses"));
+
 #if !defined(NDEBUG)
 static cl::opt<bool>
     VerifyOption("atrox-verify", cl::Hidden, cl::init(true),
@@ -1596,6 +1601,22 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
 
   auto *newFuncExit = BasicBlock::Create(header->getContext(), "exit");
 
+  if(FlattenArrayAccesses) {
+    for (auto &e : Accesses->Accesses) {
+      auto *ptr = e.getPointerOperand();
+
+      llvm::SmallPtrSet<llvm::GetElementPtrInst *, 8> geps;
+      if (ptr && llvm::isa<llvm::GetElementPtrInst>(ptr)) {
+        auto &cgep = *VMap[ptr];
+        geps.insert(llvm::dyn_cast<llvm::GetElementPtrInst>(&cgep));
+      }
+
+      for (auto *gep : geps) {
+        FlattenMultiDimArrayIndices(gep);
+      }
+    }
+  }
+
   // Construct new function based on inputs/outputs & add allocas for all defs.
   Function *newFunction =
       cloneFunction(Inputs, Outputs, cloneHeader, newFuncRoot, newFuncExit,
@@ -1613,20 +1634,6 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
   remapCloneBlocks();
 
   moveBlocksToFunction(CloneBlocks, newFunction);
-
-  for (auto &e : Accesses->Accesses) {
-    auto *ptr = e.getPointerOperand();
-
-    llvm::SmallPtrSet<llvm::GetElementPtrInst *, 8> geps;
-    if (ptr && llvm::isa<llvm::GetElementPtrInst>(ptr)) {
-      auto &cgep = *VMap[ptr];
-      geps.insert(llvm::dyn_cast<llvm::GetElementPtrInst>(&cgep));
-    }
-
-    for (auto *gep : geps) {
-      FlattenMultiDimArrayIndices(gep);
-    }
-  }
 
   // Propagate personality info to the new function if there is one.
   if (oldFunction->hasPersonalityFn())
