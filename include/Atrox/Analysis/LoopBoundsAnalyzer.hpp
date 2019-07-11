@@ -33,7 +33,8 @@ struct LoopIterationSpaceInfo {
 };
 
 class LoopBoundsAnalyzer {
-  const llvm::Loop *L;
+  llvm::Loop *TopL;
+  llvm::Loop *TargetL;
   llvm::LoopInfo *LI;
   llvm::ScalarEvolution *SE;
   std::map<llvm::Loop *, LoopIterationSpaceInfo> LoopBoundsMap;
@@ -41,12 +42,16 @@ class LoopBoundsAnalyzer {
 public:
   LoopBoundsAnalyzer() = delete;
 
-  LoopBoundsAnalyzer(const llvm::Loop &CurL, llvm::LoopInfo &CurLI,
+  LoopBoundsAnalyzer(llvm::Loop &CurL, llvm::LoopInfo &CurLI,
                      llvm::ScalarEvolution &CurSE)
-      : L(&CurL), LI(&CurLI), SE(&CurSE) {
-    assert(LI->getLoopFor(L->getHeader()) == L &&
+      : TopL(nullptr), TargetL(&CurL), LI(&CurLI), SE(&CurSE) {
+    assert(LI->getLoopFor(TargetL->getHeader()) == TargetL &&
            "Loop does not belong to this loop info object!");
-    assert(L->getLoopDepth() == 1 && "Top level loop is required!");
+
+    TopL = TargetL;
+    while (TopL->getParentLoop()) {
+      TopL = TopL->getParentLoop();
+    }
   }
 
   bool isValueUsedInLoopNestConditions(

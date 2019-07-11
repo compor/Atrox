@@ -111,7 +111,7 @@ bool LoopBoundsAnalyzer::isValueUsedInLoopNestConditions(
   for (auto *e : loops) {
     if (auto *be = llvm::dyn_cast_or_null<llvm::Instruction>(
             GetBackedgeCondition(e))) {
-     LLVM_DEBUG(llvm::dbgs() << "condition: " << *be << '\n';);
+      LLVM_DEBUG(llvm::dbgs() << "condition: " << *be << '\n';);
 
       for (auto &op : be->operands()) {
         if (op.get() == V) {
@@ -155,11 +155,11 @@ bool LoopBoundsAnalyzer::analyze() {
   bool isAnalyzable = false;
 
   LLVM_DEBUG(llvm::dbgs() << "analyzing loop with header: "
-                          << L->getHeader()->getName() << '\n';);
+                          << TargetL->getHeader()->getName() << '\n';);
 
   llvm::SmallVector<llvm::Loop *, 8> workList;
   for (auto *e : LI->getLoopsInPreorder()) {
-    if (L->contains(e->getHeader())) {
+    if (TargetL->contains(e->getHeader())) {
       workList.push_back(e);
     }
   }

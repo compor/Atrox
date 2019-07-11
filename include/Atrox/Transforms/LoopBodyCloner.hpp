@@ -193,7 +193,9 @@ public:
       llvm::ScalarEvolution *SE = nullptr, llvm::AAResults *AA = nullptr) {
     bool hasChanged = false;
 
-    for (auto *curLoop : LI) {
+    auto loops = LI.getLoopsInPreorder();
+
+    for (auto *curLoop : loops) {
       hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfo, SE, AA);
     }
 
