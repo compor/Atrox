@@ -164,6 +164,7 @@ bool FlattenMultiDimArrayIndices(llvm::GetElementPtrInst *GEP) {
       elemTy, ptrCast, summedIndices.back(), "decomposed.ptr", GEP);
 
   if (auto *dbg = GEP->getMetadata("dbg")) {
+    ptrCast->setMetadata("dbg", dbg);
     newGEP->setMetadata("dbg", dbg);
   }
 
