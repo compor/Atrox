@@ -555,7 +555,7 @@ void CodeExtractor::findGlobalInputsOutputs(ValueSet &Inputs,
     return !llvm::isa<llvm::GlobalVariable>(e->getPointerOperand());
   });
 
-  if(toErase != geps.end() )  {
+  if (toErase != geps.end()) {
     geps.erase(toErase);
   }
 
@@ -1605,7 +1605,7 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
 
   auto *newFuncExit = BasicBlock::Create(header->getContext(), "exit");
 
-  if(FlattenArrayAccesses) {
+  if (FlattenArrayAccesses) {
     for (auto &e : Accesses->Accesses) {
       auto *ptr = e.getPointerOperand();
 

@@ -48,18 +48,40 @@ bool FindPartitionPoints(const llvm::Loop &CurLoop,
   for (auto bi = CurLoop.block_begin(), be = CurLoop.block_end(); bi != be;
        ++bi) {
     auto *bb = *bi;
-    auto firstI = bb->getFirstInsertionPt();
+    // auto firstI = bb->getFirstInsertionPt();
     // auto lastSeenMode = InvertMode(GetMode(*firstI, CurLoop, Info));
     bool hasAllSameModeInstructions = true;
 
+    auto phisMode = GetMode(*bb->begin(), CurLoop, Info);
+    for (auto &e : bb->phis()) {
+      auto mode = GetMode(e, CurLoop, Info);
+      if (phisMode != mode) {
+        hasAllSameModeInstructions = false;
+        break;
+      }
+
+      phisMode = mode;
+    }
+
+    // these are just for auto type deduction
+    auto firstI = bb->getFirstInsertionPt();
     auto lastSeenMode = GetMode(*firstI, CurLoop, Info);
-    if (firstI != bb->begin()) {
+
+    if (hasAllSameModeInstructions) {
+      firstI = bb->begin();
+      lastSeenMode = GetMode(*firstI, CurLoop, Info);
+    } else {
+      firstI = bb->getFirstInsertionPt();
+      lastSeenMode = GetMode(*firstI, CurLoop, Info);
+
       auto modeChangePt = std::make_pair(&*firstI, InvertMode(lastSeenMode));
       if (Points.find(bb) == Points.end())
         Points.emplace(bb, std::vector<BlockModeChangePointTy>{});
 
       Points.at(bb).push_back(modeChangePt);
     }
+
+    hasAllSameModeInstructions = true;
 
     for (auto ii = firstI, ie = bb->end(); ii != ie; ++ii) {
       auto &inst = *ii;
