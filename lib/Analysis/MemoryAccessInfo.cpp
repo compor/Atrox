@@ -42,7 +42,13 @@ bool MemoryAccessInfo::isRead(llvm::Value *V) {
         }
       }
     }
-  } else if (auto *inst = llvm::dyn_cast<llvm::Argument>(V)) {
+  } else if (auto *arg = llvm::dyn_cast<llvm::Argument>(V)) {
+    if (AtroxIgnoreAliasing) {
+      return true;
+    }
+
+    // TODO more elaborate handling is required here
+  } else if (auto *glob = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
     if (AtroxIgnoreAliasing) {
       return true;
     }
@@ -67,8 +73,13 @@ bool MemoryAccessInfo::isWrite(llvm::Value *V) {
         }
       }
     }
-  }
-  else if (auto *inst = llvm::dyn_cast<llvm::Argument>(V)) {
+  } else if (auto *arg = llvm::dyn_cast<llvm::Argument>(V)) {
+    if (AtroxIgnoreAliasing) {
+      return true;
+    }
+
+    // TODO more elaborate handling is required here
+  } else if (auto *glob = llvm::dyn_cast<llvm::GlobalVariable>(V)) {
     if (AtroxIgnoreAliasing) {
       return true;
     }
