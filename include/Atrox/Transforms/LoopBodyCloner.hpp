@@ -50,6 +50,9 @@
 // using DEBUG macro
 // using llvm::dbgs
 
+#include <cassert>
+// using assert
+
 #define DEBUG_TYPE "atrox-loop-body-clone"
 
 namespace atrox {
@@ -69,7 +72,7 @@ public:
   bool cloneLoop(
       llvm::Loop &L, llvm::LoopInfo &LI, T &Selector,
       llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *> ITRInfo,
-      llvm::ScalarEvolution *SE = nullptr, llvm::AAResults *AA = nullptr) {
+      LoopBoundsAnalyzer &LBA, llvm::AAResults *AA = nullptr) {
     bool hasChanged = false;
 
     llvm::SmallVector<llvm::BasicBlock *, 32> blocks;
@@ -97,12 +100,21 @@ public:
 
       llvm::SetVector<llvm::Value *> toStackAllocate;
       {
-        LoopBoundsAnalyzer lba{L, LI, *SE};
         llvm::SmallPtrSet<llvm::BasicBlock *, 8> interesting{blocks.begin(),
                                                              blocks.end()};
 
         for (auto *v : inputs) {
-          if (lba.isValueUsedOnlyInLoopNestConditions(v, &L, interesting)) {
+          auto isCondUse =
+              LBA.isValueUsedOnlyInLoopNestConditions(v, &L, interesting);
+          auto isOuterIndVar = LBA.isValueOuterLoopInductionVariable(v, &L);
+
+          auto isBoth = isCondUse && isOuterIndVar;
+          if (isBoth) {
+            LLVM_DEBUG(llvm::dbgs() << "Input has both types: " << *v << '\n';);
+          }
+          assert(!isBoth && "Examine the case where inputs are both!");
+
+          if (isCondUse || isOuterIndVar) {
             toStackAllocate.insert(v);
           }
         }
@@ -180,7 +192,7 @@ public:
       }
     } else {
       LLVM_DEBUG(llvm::dbgs()
-                 << "Skipping loop because no blocks were selected.\n");
+                 << "skipping loop because no blocks were selected.\n");
     }
 
     return hasChanged;
@@ -194,9 +206,14 @@ public:
     bool hasChanged = false;
 
     auto loops = LI.getLoopsInPreorder();
+    LoopBoundsAnalyzer lba{LI, *SE};
 
     for (auto *curLoop : loops) {
-      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfo, SE, AA);
+      lba.analyze(curLoop);
+
+      LLVM_DEBUG(llvm::dbgs() << "processing loop: "
+                              << curLoop->getHeader()->getName() << '\n';);
+      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfo, lba, AA);
     }
 
     return hasChanged;

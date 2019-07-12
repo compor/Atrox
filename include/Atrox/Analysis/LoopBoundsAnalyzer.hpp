@@ -34,25 +34,22 @@ struct LoopIterationSpaceInfo {
 
 class LoopBoundsAnalyzer {
   llvm::Loop *TopL;
-  llvm::Loop *TargetL;
   llvm::LoopInfo *LI;
   llvm::ScalarEvolution *SE;
   std::map<llvm::Loop *, LoopIterationSpaceInfo> LoopBoundsMap;
 
+  void reset() {
+    TopL = nullptr;
+    LoopBoundsMap.clear();
+  }
+
 public:
   LoopBoundsAnalyzer() = delete;
 
-  LoopBoundsAnalyzer(llvm::Loop &CurL, llvm::LoopInfo &CurLI,
-                     llvm::ScalarEvolution &CurSE)
-      : TopL(nullptr), TargetL(&CurL), LI(&CurLI), SE(&CurSE) {
-    assert(LI->getLoopFor(TargetL->getHeader()) == TargetL &&
-           "Loop does not belong to this loop info object!");
+  LoopBoundsAnalyzer(llvm::LoopInfo &CurLI, llvm::ScalarEvolution &CurSE)
+      : TopL(nullptr), LI(&CurLI), SE(&CurSE) {}
 
-    TopL = TargetL;
-    while (TopL->getParentLoop()) {
-      TopL = TopL->getParentLoop();
-    }
-  }
+  bool analyze(llvm::Loop *CurL);
 
   bool isValueUsedInLoopNestConditions(
       llvm::Value *V, llvm::Loop *L,
@@ -62,7 +59,7 @@ public:
       llvm::Value *V, llvm::Loop *L,
       const llvm::SmallPtrSetImpl<llvm::BasicBlock *> &Interesting);
 
-  bool analyze();
+  bool isValueOuterLoopInductionVariable(llvm::Value *V, llvm::Loop *L);
 };
 
 } // namespace atrox

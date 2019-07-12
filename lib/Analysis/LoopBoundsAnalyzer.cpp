@@ -38,6 +38,18 @@
 
 namespace {
 
+bool isOuterLoopOf(llvm::Loop *PossibleOuterLoop, llvm::Loop *QueryLoop) {
+  while (QueryLoop->getParentLoop()) {
+    QueryLoop = QueryLoop->getParentLoop();
+
+    if (PossibleOuterLoop == QueryLoop) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 llvm::PHINode *GetInductionVariable(llvm::Loop *L, llvm::ScalarEvolution *SE) {
   llvm::PHINode *InnerIndexVar = L->getCanonicalInductionVariable();
 
@@ -151,15 +163,29 @@ bool LoopBoundsAnalyzer::isValueUsedOnlyInLoopNestConditions(
   return used ? true : false;
 }
 
-bool LoopBoundsAnalyzer::analyze() {
-  bool isAnalyzable = false;
+bool LoopBoundsAnalyzer::analyze(llvm::Loop *CurL) {
+  assert(CurL && "Loop is empty!");
+  assert(LI->getLoopFor(CurL->getHeader()) == CurL &&
+         "Loop does not belong to this loop info object!");
+
+  auto *topL = CurL;
+  while (topL->getParentLoop()) {
+    topL = topL->getParentLoop();
+  }
+
+  if (topL == TopL) {
+    return true;
+  }
+
+  reset();
+  TopL = topL;
 
   LLVM_DEBUG(llvm::dbgs() << "analyzing loop with header: "
-                          << TargetL->getHeader()->getName() << '\n';);
+                          << TopL->getHeader()->getName() << '\n';);
 
   llvm::SmallVector<llvm::Loop *, 8> workList;
   for (auto *e : LI->getLoopsInPreorder()) {
-    if (TargetL->contains(e->getHeader())) {
+    if (TopL->contains(e->getHeader())) {
       workList.push_back(e);
     }
   }
@@ -175,8 +201,15 @@ bool LoopBoundsAnalyzer::analyze() {
     if (auto *ind = GetInductionVariable(e, SE)) {
       LLVM_DEBUG(llvm::dbgs() << "induction variable: " << *ind << '\n';);
 
-      auto *indAR =
-          llvm::dyn_cast<llvm::SCEVAddRecExpr>(SE->getSCEVAtScope(ind, e));
+      const llvm::SCEVAddRecExpr *indAR = nullptr;
+
+      if (e != TopL) {
+        indAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(SE->getSCEV(ind));
+        // indAR =
+        // llvm::dyn_cast<llvm::SCEVAddRecExpr>(SE->getSCEVAtScope(ind, e));
+      } else {
+        indAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(SE->getSCEV(ind));
+      }
 
       if (!indAR) {
         LLVM_DEBUG(llvm::dbgs() << "induction variable is not an add "
@@ -199,7 +232,18 @@ bool LoopBoundsAnalyzer::analyze() {
     }
   }
 
-  return isAnalyzable;
+  return true;
+}
+
+bool LoopBoundsAnalyzer::isValueOuterLoopInductionVariable(llvm::Value *V,
+                                                           llvm::Loop *L) {
+  for (auto &e : LoopBoundsMap) {
+    if (e.second.InductionVariable == V) {
+      return isOuterLoopOf(e.first, L);
+    }
+  }
+
+  return false;
 }
 
 } // namespace atrox
