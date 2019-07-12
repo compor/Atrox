@@ -211,7 +211,9 @@ bool LoopBodyClonerPass::perform(
     // however that instruction can acquire the mode of its immediately
     // preceding instruction
     if (SeparateBlocksOption) {
-      for (auto *curLoop : li) {
+      auto loops = li.getLoopsInPreorder();
+
+      for (auto *curLoop : loops) {
         BlockModeChangePointMapTy modeChanges;
         BlockModeMapTy blockModes;
 
