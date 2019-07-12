@@ -4,6 +4,8 @@
 
 #include "Atrox/Analysis/MemoryAccessInfo.hpp"
 
+#include "private/PassCommandLineOptions.hpp"
+
 #include "llvm/Analysis/AliasAnalysis.h"
 // using llvm::AAResults
 
@@ -30,10 +32,7 @@ namespace atrox {
 bool MemoryAccessInfo::isRead(llvm::Value *V) {
   LLVM_DEBUG(llvm::dbgs() << "examining read for: " << *V << '\n';);
 
-  if (auto *inst = llvm::dyn_cast<llvm::Argument>(V)) {
-    // TODO more elaborate handling is required here
-    return true;
-  } else if (auto *inst = llvm::dyn_cast<llvm::Instruction>(V)) {
+  if (auto *inst = llvm::dyn_cast<llvm::Instruction>(V)) {
     for (auto *bb : Blocks) {
       for (auto &i : *bb) {
         auto mri = AA->getModRefInfo(&i, llvm::MemoryLocation::getOrNone(inst));
@@ -43,6 +42,12 @@ bool MemoryAccessInfo::isRead(llvm::Value *V) {
         }
       }
     }
+  } else if (auto *inst = llvm::dyn_cast<llvm::Argument>(V)) {
+    if (AtroxIgnoreAliasing) {
+      return true;
+    }
+
+    // TODO more elaborate handling is required here
   } else {
     llvm_unreachable("Unhandled value type");
   }
@@ -53,10 +58,7 @@ bool MemoryAccessInfo::isRead(llvm::Value *V) {
 bool MemoryAccessInfo::isWrite(llvm::Value *V) {
   LLVM_DEBUG(llvm::dbgs() << "examining write for: " << *V << '\n';);
 
-  if (auto *inst = llvm::dyn_cast<llvm::Argument>(V)) {
-    // TODO more elaborate handling is required here
-    return true;
-  } else if (auto *inst = llvm::dyn_cast<llvm::Instruction>(V)) {
+  if (auto *inst = llvm::dyn_cast<llvm::Instruction>(V)) {
     for (auto *bb : Blocks) {
       for (auto &i : *bb) {
         auto mri = AA->getModRefInfo(&i, llvm::MemoryLocation::getOrNone(inst));
@@ -65,6 +67,13 @@ bool MemoryAccessInfo::isWrite(llvm::Value *V) {
         }
       }
     }
+  }
+  else if (auto *inst = llvm::dyn_cast<llvm::Argument>(V)) {
+    if (AtroxIgnoreAliasing) {
+      return true;
+    }
+
+    // TODO more elaborate handling is required here
   } else {
     llvm_unreachable("Unhandled value type");
   }

@@ -18,6 +18,11 @@
 llvm::cl::OptionCategory AtroxCLCategory("Atrox Pass",
                                          "Options for Atrox pass");
 
+llvm::cl::opt<bool>
+    AtroxIgnoreAliasing("atrox-ignore-aliasing", llvm::cl::init(true),
+                        llvm::cl::desc("use specific aliasing assumptions"),
+                        llvm::cl::cat(AtroxCLCategory));
+
 llvm::cl::opt<std::string>
     AtroxReportsDir("atrox-reports-dir",
                     llvm::cl::desc("output reports directory"),
