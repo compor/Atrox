@@ -105,6 +105,10 @@ void GenerateArgDirection(
     llvm::SmallVectorImpl<ArgDirection> &ArgDirs, MemoryAccessInfo *MAI) {
 
   for (auto *v : Inputs) {
+    if (IsBidirectional(v, OutputToInput)) {
+      continue;
+    }
+
     if (MAI && v->getType()->isPointerTy()) {
       if (MAI->isWrite(v)) {
         ArgDirs.push_back(ArgDirection::AD_Both);
