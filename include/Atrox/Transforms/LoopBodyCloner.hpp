@@ -83,6 +83,7 @@ public:
 
       llvm::SetVector<llvm::Value *> inputs, outputs, sinks;
       ce.findInputsOutputs(inputs, outputs, sinks);
+      ce.findGlobalInputsOutputs(inputs, outputs);
 
       CodeExtractor::InputToOutputMapTy ioMap;
       CodeExtractor::OutputToInputMapTy oiMap;

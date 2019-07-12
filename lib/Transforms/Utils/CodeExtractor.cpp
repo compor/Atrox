@@ -1562,25 +1562,25 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
     Outputs.clear();
     SinkingCands.clear();
     findInputsOutputs(Inputs, Outputs, SinkingCands);
-  }
 
-  ValueSet gInputs, gOutputs;
-  findGlobalInputsOutputs(gInputs, gOutputs);
+    ValueSet gInputs, gOutputs;
+    findGlobalInputsOutputs(gInputs, gOutputs);
 
-  LLVM_DEBUG(dbgs() << "global inputs: \n";
-             for (auto *e
-                  : gInputs) { dbgs() << *e << '\n'; });
+    LLVM_DEBUG(dbgs() << "global inputs: \n";
+               for (auto *e
+                    : gInputs) { dbgs() << *e << '\n'; });
 
-  LLVM_DEBUG(dbgs() << "global outputs: \n";
-             for (auto *e
-                  : gOutputs) { dbgs() << *e << '\n'; });
+    LLVM_DEBUG(dbgs() << "global outputs: \n";
+               for (auto *e
+                    : gOutputs) { dbgs() << *e << '\n'; });
 
-  for (auto *e : gInputs) {
-    Inputs.insert(e);
-  }
+    for (auto *e : gInputs) {
+      Inputs.insert(e);
+    }
 
-  for (auto *e : gOutputs) {
-    Outputs.insert(e);
+    for (auto *e : gOutputs) {
+      Outputs.insert(e);
+    }
   }
 
   // Now sink all instructions which only have non-phi uses inside the region
