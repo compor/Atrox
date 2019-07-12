@@ -551,9 +551,13 @@ void CodeExtractor::findGlobalInputsOutputs(ValueSet &Inputs,
     }
   }
 
-  geps.erase(std::remove_if(geps.begin(), geps.end(), [&](const auto &e) {
+  auto toErase = std::remove_if(geps.begin(), geps.end(), [&](const auto &e) {
     return !llvm::isa<llvm::GlobalVariable>(e->getPointerOperand());
-  }));
+  });
+
+  if(toErase != geps.end() )  {
+    geps.erase(toErase);
+  }
 
   for (auto *gep : geps) {
     for (auto *u : gep->users()) {
