@@ -70,6 +70,7 @@ Value toJSON(ArrayRef<atrox::ArgSpec> ArgSpecs) {
 
   for (const auto &s : ArgSpecs) {
     Object item;
+    item["name"] = s.Name;
     item["direction"] = toInt(s.Direction);
     item["iterator dependent"] = s.IteratorDependent;
 

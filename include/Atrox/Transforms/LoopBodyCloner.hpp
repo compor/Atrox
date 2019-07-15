@@ -185,8 +185,14 @@ public:
       if (ShouldStoreInfo && extractedFunc) {
         std::vector<ArgSpec> specs;
 
+        assert(extractedFunc->arg_size() == argDirs.size() &&
+               "Arguments and their specs must be the same number!");
+
+        auto argIt = extractedFunc->arg_begin();
         for (size_t i = 0; i < argDirs.size(); ++i) {
-          specs.push_back({argDirs[i], argIteratorVariance[i]});
+          specs.push_back(
+              {argIt->getName(), argDirs[i], argIteratorVariance[i]});
+          ++argIt;
         }
 
         StoreInfo.push_back({extractedFunc, &L, specs});
