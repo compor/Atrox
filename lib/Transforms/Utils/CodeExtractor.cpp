@@ -930,20 +930,26 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
   }
 
   auto &DL = newFunction->getParent()->getDataLayout();
-  for (auto *e : StackAllocas) {
-    auto *cloneAlloca =
-        new llvm::AllocaInst(e->getType(), DL.getAllocaAddrSpace(), nullptr, "",
-                             newRootNode->getTerminator());
+  for (size_t i = 0; i < StackAllocas.size(); ++i) {
+    auto *cloneAlloca = new llvm::AllocaInst(StackAllocas[i]->getType(),
+                                             DL.getAllocaAddrSpace(), nullptr,
+                                             "", newRootNode->getTerminator());
+    if (StackAllocaInits.size() && StackAllocaInits[i]) {
+      auto *storeClone = new llvm::StoreInst(StackAllocaInits[i], cloneAlloca,
+                                             newRootNode->getTerminator());
+    }
+
     auto *loadClone =
         new llvm::LoadInst(cloneAlloca, "cond", newRootNode->getTerminator());
 
-    std::vector<User *> Users(e->user_begin(), e->user_end());
+    std::vector<User *> Users(StackAllocas[i]->user_begin(),
+                              StackAllocas[i]->user_end());
     for (User *use : Users) {
       if (Instruction *inst = dyn_cast<Instruction>(use)) {
         auto found = std::find(CloneBlocks.begin(), CloneBlocks.end(),
                                inst->getParent());
         if (found != CloneBlocks.end()) {
-          inst->replaceUsesOfWith(e, loadClone);
+          inst->replaceUsesOfWith(StackAllocas[i], loadClone);
         }
       }
     }

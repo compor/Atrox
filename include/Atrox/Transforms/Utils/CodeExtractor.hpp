@@ -83,6 +83,7 @@ private:
   InputToOutputMapTy InputToOutputMap;
   ValueSet Inputs, Outputs;
   ValueSet StackAllocas;
+  llvm::SmallVector<llvm::Value *, 8> StackAllocaInits;
 
   // Bits of intermediate state computed at various phases of extraction.
   SetVector<BasicBlock *> Blocks;
@@ -143,9 +144,19 @@ public:
     this->Outputs.insert(Outputs.begin(), Outputs.end());
   }
 
-  void setStackAllocas(ValueSet &StackAllocas) {
+  void setStackAllocas(
+      ValueSet &StackAllocas,
+      llvm::SmallVectorImpl<llvm::Value *> *StackAllocaInits = nullptr) {
     this->StackAllocas.clear();
     this->StackAllocas.insert(StackAllocas.begin(), StackAllocas.end());
+
+    if (StackAllocaInits) {
+      this->StackAllocaInits.clear();
+
+      for (auto *e : *StackAllocaInits) {
+        this->StackAllocaInits.push_back(e);
+      }
+    }
   }
 
   void setAccesses(MemAccInstVisitor *Accesses) { this->Accesses = Accesses; }

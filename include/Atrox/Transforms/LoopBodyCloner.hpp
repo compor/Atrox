@@ -30,6 +30,9 @@
 #include "llvm/Analysis/ScalarEvolution.h"
 // using llvm::ScalarEvolution
 
+#include "llvm/Analysis/ScalarEvolutionExpressions.h"
+// using llvm::SCEVConstant
+
 #include "llvm/Analysis/LoopInfo.h"
 // using llvm::LoopInfo
 // using llvm::Loop
@@ -100,6 +103,7 @@ public:
       }
 
       llvm::SetVector<llvm::Value *> toStackAllocate;
+      llvm::SmallVector<llvm::Value *, 8> toStackAllocateInit;
       {
         llvm::SmallPtrSet<llvm::BasicBlock *, 8> scopeBlocks{blocks.begin(),
                                                              blocks.end()};
@@ -108,14 +112,63 @@ public:
           auto isCondUse =
               LBA.isValueUsedOnlyInLoopNestConditions(v, &L, scopeBlocks);
           auto isOuterIndVar = LBA.isValueOuterLoopInductionVariable(v, &L);
+          auto isInnerIndVar = LBA.isValueInnerLoopInductionVariable(v, &L);
 
           auto isBoth = isCondUse && isOuterIndVar;
           if (isBoth) {
-            LLVM_DEBUG(llvm::dbgs() << "Input has both types: " << *v << '\n';);
+            LLVM_DEBUG(llvm::dbgs() << "Input is both used in condition and as "
+                                       "outer induction variable: "
+                                    << *v << '\n';);
           }
-          assert(!isBoth && "Examine the case where inputs are both!");
+          assert(!isBoth && "Input is of both kinds!");
 
-          if (isCondUse || isOuterIndVar) {
+          isBoth = isCondUse && isInnerIndVar;
+          if (isBoth) {
+            LLVM_DEBUG(llvm::dbgs() << "Input is both used in condition and as "
+                                       "inner induction variable: "
+                                    << *v << '\n';);
+          }
+          assert(!isBoth && "Input is of both kinds!");
+
+          if (isInnerIndVar) {
+            auto lbInfoOrErr = LBA.getInfo(v);
+            if (!lbInfoOrErr) {
+              LLVM_DEBUG(llvm::dbgs()
+                             << "Missing loop iteration space info!\n";);
+              // assert?
+            }
+            auto lbInfo = *lbInfoOrErr;
+
+            assert(llvm::dyn_cast_or_null<llvm::SCEVConstant>(lbInfo.Start) &&
+                   "Inner induction variable is not constant!");
+
+            toStackAllocateInit.push_back(nullptr);
+            toStackAllocate.insert(v);
+          }
+
+          if (isOuterIndVar) {
+            auto lbInfoOrErr = LBA.getInfo(v);
+            if (!lbInfoOrErr) {
+              LLVM_DEBUG(llvm::dbgs()
+                             << "Missing loop iteration space info!\n";);
+              // assert?
+            }
+            auto lbInfo = *lbInfoOrErr;
+
+            auto *start =
+                llvm::dyn_cast_or_null<llvm::SCEVConstant>(lbInfo.Start);
+            assert(start && "Outer induction variable is not constant!");
+
+            auto *initVal =
+                llvm::ConstantInt::get(lbInfo.InductionVariable->getType(),
+                                       start->getValue()->getZExtValue());
+            toStackAllocateInit.push_back(initVal);
+            toStackAllocate.insert(v);
+          }
+
+          if (isCondUse) {
+            // do not rewrite upper bound loop condition yet
+            toStackAllocateInit.push_back(nullptr);
             toStackAllocate.insert(v);
           }
         }
@@ -177,7 +230,7 @@ public:
 
       ce.setInputs(inputs);
       ce.setOutputs(outputs);
-      ce.setStackAllocas(toStackAllocate);
+      ce.setStackAllocas(toStackAllocate, &toStackAllocateInit);
       ce.setAccesses(&accesses);
       auto *extractedFunc = ce.cloneCodeRegion(false);
       hasChanged |= extractedFunc ? true : false;
