@@ -256,5 +256,16 @@ LoopBoundsAnalyzer::getInfo(llvm::Loop *L) const {
   return llvm::None;
 }
 
+llvm::Optional<LoopIterationSpaceInfo>
+LoopBoundsAnalyzer::getInfo(llvm::Value *IndVar) const {
+  for (auto &e : LoopBoundsMap) {
+    if (e.second.InductionVariable == IndVar) {
+      return e.second;
+    }
+  }
+
+  return llvm::None;
+}
+
 } // namespace atrox
 

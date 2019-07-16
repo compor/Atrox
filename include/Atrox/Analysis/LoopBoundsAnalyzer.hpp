@@ -65,6 +65,8 @@ public:
   bool isValueOuterLoopInductionVariable(llvm::Value *V, llvm::Loop *L);
 
   llvm::Optional<LoopIterationSpaceInfo> getInfo(llvm::Loop *L) const;
+
+  llvm::Optional<LoopIterationSpaceInfo> getInfo(llvm::Value *IndVar) const;
 };
 
 } // namespace atrox
