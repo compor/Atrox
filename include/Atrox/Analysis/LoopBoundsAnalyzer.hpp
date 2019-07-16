@@ -12,6 +12,9 @@
 // using llvm::SmallPtrSetImpl
 // using llvm::SmallPtrSet
 
+#include "llvm/ADT/Optional.h"
+// using llvm::Optional
+
 #include <map>
 // using std::map
 
@@ -60,6 +63,8 @@ public:
       const llvm::SmallPtrSetImpl<llvm::BasicBlock *> &Interesting);
 
   bool isValueOuterLoopInductionVariable(llvm::Value *V, llvm::Loop *L);
+
+  llvm::Optional<LoopIterationSpaceInfo> getInfo(llvm::Loop *L) const;
 };
 
 } // namespace atrox

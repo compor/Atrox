@@ -101,12 +101,12 @@ public:
 
       llvm::SetVector<llvm::Value *> toStackAllocate;
       {
-        llvm::SmallPtrSet<llvm::BasicBlock *, 8> interesting{blocks.begin(),
+        llvm::SmallPtrSet<llvm::BasicBlock *, 8> scopeBlocks{blocks.begin(),
                                                              blocks.end()};
 
         for (auto *v : inputs) {
           auto isCondUse =
-              LBA.isValueUsedOnlyInLoopNestConditions(v, &L, interesting);
+              LBA.isValueUsedOnlyInLoopNestConditions(v, &L, scopeBlocks);
           auto isOuterIndVar = LBA.isValueOuterLoopInductionVariable(v, &L);
 
           auto isBoth = isCondUse && isOuterIndVar;

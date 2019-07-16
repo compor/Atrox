@@ -246,5 +246,15 @@ bool LoopBoundsAnalyzer::isValueOuterLoopInductionVariable(llvm::Value *V,
   return false;
 }
 
+llvm::Optional<LoopIterationSpaceInfo>
+LoopBoundsAnalyzer::getInfo(llvm::Loop *L) const {
+  auto found = LoopBoundsMap.find(L);
+  if (found != LoopBoundsMap.end()) {
+    return found->second;
+  }
+
+  return llvm::None;
+}
+
 } // namespace atrox
 
