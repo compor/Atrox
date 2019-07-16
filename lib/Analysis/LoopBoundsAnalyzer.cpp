@@ -246,6 +246,17 @@ bool LoopBoundsAnalyzer::isValueOuterLoopInductionVariable(llvm::Value *V,
   return false;
 }
 
+bool LoopBoundsAnalyzer::isValueInnerLoopInductionVariable(llvm::Value *V,
+                                                           llvm::Loop *L) {
+  for (auto &e : LoopBoundsMap) {
+    if (e.second.InductionVariable == V) {
+      return isOuterLoopOf(L, e.first);
+    }
+  }
+
+  return false;
+}
+
 llvm::Optional<LoopIterationSpaceInfo>
 LoopBoundsAnalyzer::getInfo(llvm::Loop *L) const {
   auto found = LoopBoundsMap.find(L);
