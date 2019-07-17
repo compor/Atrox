@@ -258,28 +258,19 @@ void LoopBoundsAnalyzer::evaluate() {
 
       auto &info = LoopBoundsMap[workList[j]];
 
-      auto *startAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(
-          SE->getSCEVAtScope(info.Start, workList[j]));
-      auto *endAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(
-          SE->getSCEVAtScope(info.End, workList[j]));
-
       llvm::SCEV *start = nullptr;
-      llvm::SCEV *end = nullptr;
-
-      if (startAR) {
+      if (auto *startAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(
+              SE->getSCEVAtScope(info.Start, workList[j]))) {
         start = const_cast<llvm::SCEV *>(startAR->evaluateAtIteration(
             SE->getConstant(llvm::APInt{64, 0}), *SE));
-      }
-
-      if (endAR) {
-        end = const_cast<llvm::SCEV *>(endAR->evaluateAtIteration(
-            SE->getConstant(llvm::APInt{64, 5}), *SE));
-      }
-
-      if (start) {
         info.Start = start;
       }
-      if (end) {
+
+      llvm::SCEV *end = nullptr;
+      if (auto *endAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(
+              SE->getSCEVAtScope(info.End, workList[j]))) {
+        end = const_cast<llvm::SCEV *>(endAR->evaluateAtIteration(
+            SE->getConstant(llvm::APInt{64, 5}), *SE));
         info.End = end;
       }
     }
