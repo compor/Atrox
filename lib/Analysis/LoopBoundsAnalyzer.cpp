@@ -23,6 +23,9 @@
 #include "llvm/ADT/SmallVector.h"
 // using llvm::SmallVector
 
+#include "llvm/Support/raw_ostream.h"
+// using llvm::raw_ostream
+
 #include "llvm/Support/Debug.h"
 // using LLVM_DEBUG macro
 // using llvm::dbgs
@@ -276,6 +279,18 @@ LoopBoundsAnalyzer::getInfo(llvm::Value *IndVar) const {
   }
 
   return llvm::None;
+}
+
+void LoopBoundsAnalyzer::print(llvm::raw_ostream &OS) const {
+  for (auto &e : LoopBoundsMap) {
+    OS << "loop with header: " << e.first->getHeader()->getName() << '\n';
+    OS << "start: ";
+    e.second.Start->print(OS);
+    OS << '\n';
+    OS << "end: ";
+    e.second.End->print(OS);
+    OS << '\n';
+  }
 }
 
 } // namespace atrox

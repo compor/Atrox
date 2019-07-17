@@ -24,6 +24,7 @@
 namespace llvm {
 class ScalarEvolution;
 class SCEV;
+class raw_ostream;
 } // namespace llvm
 
 namespace atrox {
@@ -69,6 +70,8 @@ public:
   llvm::Optional<LoopIterationSpaceInfo> getInfo(llvm::Loop *L) const;
 
   llvm::Optional<LoopIterationSpaceInfo> getInfo(llvm::Value *IndVar) const;
+
+  void print(llvm::raw_ostream &OS) const;
 };
 
 } // namespace atrox
