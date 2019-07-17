@@ -55,7 +55,7 @@ public:
 
   bool analyze(llvm::Loop *CurL);
 
-  void evaluate(llvm::Loop *TargetLoop);
+  void evaluate(llvm::Loop *TargetLoop, bool ShouldCalcMaxBounds = false);
 
   bool isValueUsedInLoopNestConditions(
       llvm::Value *V, llvm::Loop *L,

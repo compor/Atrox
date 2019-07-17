@@ -238,7 +238,8 @@ bool LoopBoundsAnalyzer::analyze(llvm::Loop *CurL) {
   return true;
 }
 
-void LoopBoundsAnalyzer::evaluate(llvm::Loop *TargetLoop) {
+void LoopBoundsAnalyzer::evaluate(llvm::Loop *TargetLoop,
+                                  bool ShouldCalcMaxBounds) {
   if (!TopL) {
     return;
   }
@@ -259,7 +260,7 @@ void LoopBoundsAnalyzer::evaluate(llvm::Loop *TargetLoop) {
           SE->getConstant(llvm::APInt{64, 0}), *SE));
     }
 
-    uint64_t val = (TargetLoop == outerL) ? 5 : 0;
+    uint64_t val = (TargetLoop == outerL || ShouldCalcMaxBounds) ? 5 : 0;
     if (auto *endAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(info.End)) {
       info.End = const_cast<llvm::SCEV *>(endAR->evaluateAtIteration(
           SE->getConstant(llvm::APInt{64, val}), *SE));
@@ -279,7 +280,7 @@ void LoopBoundsAnalyzer::evaluate(llvm::Loop *TargetLoop) {
             SE->getConstant(llvm::APInt{64, 0}), *SE));
       }
 
-      if (TargetLoop != outerL) {
+      if (TargetLoop != outerL || ShouldCalcMaxBounds) {
         if (auto *endAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(
                 SE->getSCEVAtScope(info.End, innerL))) {
           info.End = const_cast<llvm::SCEV *>(endAR->evaluateAtIteration(
