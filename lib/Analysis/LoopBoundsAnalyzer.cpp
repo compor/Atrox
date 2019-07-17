@@ -238,6 +238,54 @@ bool LoopBoundsAnalyzer::analyze(llvm::Loop *CurL) {
   return true;
 }
 
+void LoopBoundsAnalyzer::evaluate() {
+  if (!TopL) {
+    return;
+  }
+
+  llvm::SmallVector<llvm::Loop *, 8> workList;
+  for (auto *e : LI->getLoopsInReverseSiblingPreorder()) {
+    if (TopL->contains(e->getHeader())) {
+      workList.push_back(e);
+    }
+  }
+
+  for (size_t i = 0; i < workList.size(); ++i) {
+    for (size_t j = i + 1; j < workList.size(); ++j) {
+      if (workList[j]->getLoopDepth() <= workList[i]->getLoopDepth()) {
+        break;
+      }
+
+      auto &info = LoopBoundsMap[workList[j]];
+
+      auto *startAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(
+          SE->getSCEVAtScope(info.Start, workList[j]));
+      auto *endAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(
+          SE->getSCEVAtScope(info.End, workList[j]));
+
+      llvm::SCEV *start = nullptr;
+      llvm::SCEV *end = nullptr;
+
+      if (startAR) {
+        start = const_cast<llvm::SCEV *>(startAR->evaluateAtIteration(
+            SE->getConstant(llvm::APInt{64, 0}), *SE));
+      }
+
+      if (endAR) {
+        end = const_cast<llvm::SCEV *>(endAR->evaluateAtIteration(
+            SE->getConstant(llvm::APInt{64, 5}), *SE));
+      }
+
+      if (start) {
+        info.Start = start;
+      }
+      if (end) {
+        info.End = end;
+      }
+    }
+  }
+}
+
 bool LoopBoundsAnalyzer::isValueOuterLoopInductionVariable(llvm::Value *V,
                                                            llvm::Loop *L) {
   for (auto &e : LoopBoundsMap) {

@@ -55,6 +55,8 @@ public:
 
   bool analyze(llvm::Loop *CurL);
 
+  void evaluate();
+
   bool isValueUsedInLoopNestConditions(
       llvm::Value *V, llvm::Loop *L,
       llvm::SmallPtrSetImpl<llvm::Instruction *> *Conditions = nullptr);
