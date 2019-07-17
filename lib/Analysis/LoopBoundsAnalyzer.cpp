@@ -238,7 +238,7 @@ bool LoopBoundsAnalyzer::analyze(llvm::Loop *CurL) {
   return true;
 }
 
-void LoopBoundsAnalyzer::evaluate() {
+void LoopBoundsAnalyzer::evaluate(llvm::Loop *TargetLoop) {
   if (!TopL) {
     return;
   }
@@ -251,28 +251,45 @@ void LoopBoundsAnalyzer::evaluate() {
   }
 
   for (size_t i = 0; i < workList.size(); ++i) {
+    auto &info = LoopBoundsMap[workList[i]];
+    auto *outerL = workList[i];
+
+    if (auto *startAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(info.Start)) {
+      info.Start = const_cast<llvm::SCEV *>(startAR->evaluateAtIteration(
+          SE->getConstant(llvm::APInt{64, 0}), *SE));
+    }
+
+    uint64_t val = (TargetLoop == outerL) ? 5 : 0;
+    if (auto *endAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(info.End)) {
+      info.End = const_cast<llvm::SCEV *>(endAR->evaluateAtIteration(
+          SE->getConstant(llvm::APInt{64, val}), *SE));
+    }
+
     for (size_t j = i + 1; j < workList.size(); ++j) {
-      if (workList[j]->getLoopDepth() <= workList[i]->getLoopDepth()) {
+      auto *innerL = workList[j];
+      if (innerL->getLoopDepth() <= outerL->getLoopDepth()) {
         break;
       }
 
-      auto &info = LoopBoundsMap[workList[j]];
+      auto &info = LoopBoundsMap[innerL];
 
-      llvm::SCEV *start = nullptr;
       if (auto *startAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(
-              SE->getSCEVAtScope(info.Start, workList[j]))) {
-        start = const_cast<llvm::SCEV *>(startAR->evaluateAtIteration(
+              SE->getSCEVAtScope(info.Start, innerL))) {
+        info.Start = const_cast<llvm::SCEV *>(startAR->evaluateAtIteration(
             SE->getConstant(llvm::APInt{64, 0}), *SE));
-        info.Start = start;
       }
 
-      llvm::SCEV *end = nullptr;
-      if (auto *endAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(
-              SE->getSCEVAtScope(info.End, workList[j]))) {
-        end = const_cast<llvm::SCEV *>(endAR->evaluateAtIteration(
-            SE->getConstant(llvm::APInt{64, 5}), *SE));
-        info.End = end;
+      if (TargetLoop != outerL) {
+        if (auto *endAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(
+                SE->getSCEVAtScope(info.End, innerL))) {
+          info.End = const_cast<llvm::SCEV *>(endAR->evaluateAtIteration(
+              SE->getConstant(llvm::APInt{64, val}), *SE));
+        }
       }
+    }
+
+    if (TargetLoop == outerL) {
+      break;
     }
   }
 }
