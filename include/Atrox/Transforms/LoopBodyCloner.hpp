@@ -167,8 +167,8 @@ public:
           }
 
           if (isCondUse) {
-            // do not rewrite upper bound loop condition yet
-            toStackAllocateInit.push_back(nullptr);
+            auto *initVal = llvm::ConstantInt::get(v->getType(), 5);
+            toStackAllocateInit.push_back(initVal);
             toStackAllocate.insert(v);
           }
         }
