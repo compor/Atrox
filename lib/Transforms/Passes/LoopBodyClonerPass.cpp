@@ -162,6 +162,17 @@ bool LoopBodyClonerPass::perform(
   llvm::SmallVector<llvm::Function *, 32> workList;
   workList.reserve(M.size());
 
+  if (ExportResults) {
+    auto dirOrErr = iteratorrecognition::CreateDirectory(AtroxReportsDir);
+    if (std::error_code ec = dirOrErr.getError()) {
+      llvm::errs() << "Error: " << ec.message() << '\n';
+      llvm::report_fatal_error("Failed to create reports directory" +
+                               AtroxReportsDir);
+    }
+
+    AtroxReportsDir = dirOrErr.get();
+  }
+
   for (auto &func : M) {
     if (func.isDeclaration()) {
       continue;
@@ -178,17 +189,6 @@ bool LoopBodyClonerPass::perform(
     }
 
     workList.push_back(&func);
-  }
-
-  if (ExportResults) {
-    auto dirOrErr = iteratorrecognition::CreateDirectory(AtroxReportsDir);
-    if (std::error_code ec = dirOrErr.getError()) {
-      llvm::errs() << "Error: " << ec.message() << '\n';
-      llvm::report_fatal_error("Failed to create reports directory" +
-                               AtroxReportsDir);
-    }
-
-    AtroxReportsDir = dirOrErr.get();
   }
 
   while (!workList.empty()) {
