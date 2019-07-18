@@ -107,6 +107,8 @@ public:
       {
         llvm::SmallPtrSet<llvm::BasicBlock *, 8> scopeBlocks{blocks.begin(),
                                                              blocks.end()};
+        auto evalLBA = LBA;
+        evalLBA.evaluate(0, 5, &L);
 
         for (auto *v : inputs) {
           auto isCondUse =
@@ -131,7 +133,7 @@ public:
           assert(!isBoth && "Input is of both kinds!");
 
           if (isInnerIndVar) {
-            auto lbInfoOrErr = LBA.getInfo(v);
+            auto lbInfoOrErr = evalLBA.getInfo(v);
             if (!lbInfoOrErr) {
               LLVM_DEBUG(llvm::dbgs()
                              << "Missing loop iteration space info!\n";);
@@ -147,7 +149,7 @@ public:
           }
 
           if (isOuterIndVar) {
-            auto lbInfoOrErr = LBA.getInfo(v);
+            auto lbInfoOrErr = evalLBA.getInfo(v);
             if (!lbInfoOrErr) {
               LLVM_DEBUG(llvm::dbgs()
                              << "Missing loop iteration space info!\n";);
