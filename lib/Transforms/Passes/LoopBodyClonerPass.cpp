@@ -293,7 +293,7 @@ LoopBodyClonerPass::run(llvm::Module &M, llvm::ModuleAnalysisManager &MAM) {
 // legacy passmanager pass
 
 void LoopBodyClonerLegacyPass::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
-  AU.addRequired<llvm::ScalarEvolutionWrapperPass>();
+  AU.addRequiredTransitive<llvm::ScalarEvolutionWrapperPass>();
   AU.addRequiredTransitive<llvm::AAResultsWrapperPass>();
   AU.addRequired<llvm::MemoryDependenceWrapperPass>();
   AU.setPreservesAll();
