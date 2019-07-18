@@ -56,8 +56,9 @@ bool isOuterLoopOf(llvm::Loop *PossibleOuterLoop, llvm::Loop *QueryLoop) {
 llvm::PHINode *GetInductionVariable(llvm::Loop *L, llvm::ScalarEvolution *SE) {
   llvm::PHINode *InnerIndexVar = L->getCanonicalInductionVariable();
 
-  if (InnerIndexVar)
+  if (InnerIndexVar) {
     return InnerIndexVar;
+  }
 
   if (L->getLoopLatch() == nullptr || L->getLoopPredecessor() == nullptr)
     return nullptr;
@@ -204,15 +205,8 @@ bool LoopBoundsAnalyzer::analyze(llvm::Loop *CurL) {
     if (auto *ind = GetInductionVariable(e, SE)) {
       LLVM_DEBUG(llvm::dbgs() << "induction variable: " << *ind << '\n';);
 
-      const llvm::SCEVAddRecExpr *indAR = nullptr;
-
-      if (e != TopL) {
-        indAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(SE->getSCEV(ind));
-        // indAR =
-        // llvm::dyn_cast<llvm::SCEVAddRecExpr>(SE->getSCEVAtScope(ind, e));
-      } else {
-        indAR = llvm::dyn_cast<llvm::SCEVAddRecExpr>(SE->getSCEV(ind));
-      }
+      const llvm::SCEVAddRecExpr *indAR =
+          llvm::dyn_cast<llvm::SCEVAddRecExpr>(SE->getSCEV(ind));
 
       if (!indAR) {
         LLVM_DEBUG(llvm::dbgs() << "induction variable is not an add "
