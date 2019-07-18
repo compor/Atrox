@@ -60,6 +60,9 @@ public:
   LoopBoundsAnalyzer(llvm::LoopInfo &CurLI, llvm::ScalarEvolution &CurSE)
       : TopL(nullptr), LI(&CurLI), SE(&CurSE) {}
 
+  LoopBoundsAnalyzer(LoopBoundsAnalyzer &Other) = default;
+  LoopBoundsAnalyzer &operator=(LoopBoundsAnalyzer &Other) = default;
+
   LoopBoundsAnalyzer(LoopBoundsAnalyzer &&Other)
       : TopL(Other.TopL), LI(Other.LI), SE(Other.SE),
         LoopBoundsMap(std::move(Other.LoopBoundsMap)) {
