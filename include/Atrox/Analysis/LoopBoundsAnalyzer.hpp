@@ -47,11 +47,35 @@ class LoopBoundsAnalyzer {
     LoopBoundsMap.clear();
   }
 
+  void clear() {
+    TopL = nullptr;
+    LI = nullptr;
+    SE = nullptr;
+    LoopBoundsMap.clear();
+  }
+
 public:
   LoopBoundsAnalyzer() = delete;
 
   LoopBoundsAnalyzer(llvm::LoopInfo &CurLI, llvm::ScalarEvolution &CurSE)
       : TopL(nullptr), LI(&CurLI), SE(&CurSE) {}
+
+  LoopBoundsAnalyzer(LoopBoundsAnalyzer &&Other)
+      : TopL(Other.TopL), LI(Other.LI), SE(Other.SE),
+        LoopBoundsMap(std::move(Other.LoopBoundsMap)) {
+    Other.clear();
+  }
+
+  LoopBoundsAnalyzer &operator=(LoopBoundsAnalyzer &&Other) {
+    TopL = Other.TopL;
+    LI = Other.LI;
+    SE = Other.SE;
+    LoopBoundsMap = std::move(Other.LoopBoundsMap);
+
+    Other.clear();
+
+    return *this;
+  }
 
   bool analyze(llvm::Loop *CurL);
 
