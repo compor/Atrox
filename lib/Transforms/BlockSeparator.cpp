@@ -105,7 +105,7 @@ bool FindPartitionPoints(const llvm::Loop &CurLoop,
       Modes.emplace(bb, lastSeenMode);
   }
 
-  return true;
+  return !Points.empty();
 }
 
 void SplitAtPartitionPoints(BlockModeChangePointMapTy &Points,
