@@ -21,8 +21,6 @@
 #include "llvm/ADT/SetVector.h"
 // using llvm::SetVector
 
-#define DEBUG_TYPE "atrox-argutils"
-
 namespace llvm {
 class Value;
 } // namespace llvm

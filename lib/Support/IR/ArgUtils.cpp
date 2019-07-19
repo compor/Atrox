@@ -21,6 +21,8 @@
 #include <cassert>
 // using assert
 
+#define DEBUG_TYPE "atrox-argutils"
+
 namespace atrox {
 
 bool ReorderInputs(llvm::SetVector<llvm::Value *> &Inputs,
