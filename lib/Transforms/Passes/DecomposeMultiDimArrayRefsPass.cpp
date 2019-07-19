@@ -139,14 +139,22 @@ DecomposeMultiDimArrayRefsPass::run(llvm::Function &F,
                                     llvm::FunctionAnalysisManager &FAM) {
   bool hasChanged = perform(F);
 
-  return hasChanged ? llvm::PreservedAnalyses::all()
-                    : llvm::PreservedAnalyses::none();
+  if (!hasChanged) {
+    return llvm::PreservedAnalyses::all();
+  }
+
+  llvm::PreservedAnalyses PA;
+  PA.preserveSet<llvm::CFGAnalyses>();
+
+  return PA;
 }
 
 // legacy passmanager pass
 
 void DecomposeMultiDimArrayRefsLegacyPass::getAnalysisUsage(
-    llvm::AnalysisUsage &AU) const {}
+    llvm::AnalysisUsage &AU) const {
+  AU.setPreservesCFG();
+}
 
 bool DecomposeMultiDimArrayRefsLegacyPass::runOnFunction(llvm::Function &F) {
   DecomposeMultiDimArrayRefsPass pass;
