@@ -121,39 +121,38 @@ bool BlockSeparatorPass::perform(llvm::Function &F, llvm::DominatorTree *DT,
     if (found == AtroxFunctionWhiteList.end()) {
       return hasChanged;
     }
+  }
 
-    LLVM_DEBUG(llvm::dbgs() << "processing func: " << F.getName() << '\n';);
+  LLVM_DEBUG(llvm::dbgs() << "processing func: " << F.getName() << '\n';);
 
-    auto itrInfo = BuildITRInfo(*LI, *BuildPDG(F, MDR));
+  auto itrInfo = BuildITRInfo(*LI, *BuildPDG(F, MDR));
 
-    // NOTE
-    // this does not update the iterator info with the uncond branch instruction
-    // that might be added by block splitting
-    // however that instruction can acquire the mode of its immediately
-    // preceding instruction
-    auto loops = LI->getLoopsInPreorder();
+  // NOTE
+  // this does not update the iterator info with the uncond branch instruction
+  // that might be added by block splitting
+  // however that instruction can acquire the mode of its immediately
+  // preceding instruction
 
-    for (auto *curLoop : loops) {
-      BlockModeChangePointMapTy modeChanges;
-      BlockModeMapTy blockModes;
+  for (auto *curLoop : LI->getLoopsInPreorder()) {
+    BlockModeChangePointMapTy modeChanges;
+    BlockModeMapTy blockModes;
 
-      auto infoOrError = itrInfo->getIteratorInfoFor(curLoop);
+    auto infoOrError = itrInfo->getIteratorInfoFor(curLoop);
 
-      if (!infoOrError) {
-        continue;
-      }
-      auto &info = *infoOrError;
+    if (!infoOrError) {
+      continue;
+    }
+    auto &info = *infoOrError;
 
-      bool found = FindPartitionPoints(*curLoop, info, blockModes, modeChanges);
+    bool found = FindPartitionPoints(*curLoop, info, blockModes, modeChanges);
 
-      if (found) {
-        SplitAtPartitionPoints(modeChanges, blockModes, DT, LI);
-        hasChanged = true;
-        LLVM_DEBUG(llvm::dbgs() << "partition points found: "
-                                << modeChanges.size() << '\n';);
-      } else {
-        LLVM_DEBUG(llvm::dbgs() << "No partition points found\n";);
-      }
+    if (found) {
+      SplitAtPartitionPoints(modeChanges, blockModes, DT, LI);
+      hasChanged = true;
+      LLVM_DEBUG(llvm::dbgs() << "partition points found: "
+                              << modeChanges.size() << '\n';);
+    } else {
+      LLVM_DEBUG(llvm::dbgs() << "No partition points found\n";);
     }
   }
 
