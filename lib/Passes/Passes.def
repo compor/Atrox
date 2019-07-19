@@ -8,5 +8,6 @@ MODULE_PASS("atrox-loop-body-clone", atrox::LoopBodyClonerPass())
 #define FUNCTION_PASS(NAME, CREATE_PASS)
 #endif
 FUNCTION_PASS("atrox-decompose-array-refs", atrox::DecomposeMultiDimArrayRefsPass())
+FUNCTION_PASS("atrox-block-separator", atrox::BlockSeparatorPass())
 #undef FUNCTION_PASS
 

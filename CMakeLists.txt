@@ -159,6 +159,7 @@ set(LIB_SOURCES
   "lib/Transforms/DecomposeMultiDimArrayRefs.cpp"
   "lib/Transforms/BlockSeparator.cpp"
   "lib/Transforms/Passes/LoopBodyClonerPass.cpp"
+  "lib/Transforms/Passes/BlockSeparatorPass.cpp"
   "lib/Transforms/Passes/DecomposeMultiDimArrayRefsPass.cpp"
   "lib/Transforms/Utils/CodeExtractor.cpp"
   )
