@@ -18,8 +18,6 @@
 
 #include "Atrox/Transforms/LoopBodyCloner.hpp"
 
-#include "Atrox/Transforms/BlockSeparator.hpp"
-
 #include "Atrox/Exchange/JSONTransfer.hpp"
 
 // TODO maybe factor out this code to common utility project
@@ -124,11 +122,6 @@ static llvm::cl::opt<SelectionStrategy> SelectionStrategyOption(
                    "weighted iterator recognition based")),
     llvm::cl::cat(AtroxCLCategory));
 
-static llvm::cl::opt<bool> SeparateBlocksOption(
-    "atrox-separate-blocks",
-    llvm::cl::desc("separate blocks based on iterator recognition"),
-    llvm::cl::init(true), llvm::cl::Hidden, llvm::cl::cat(AtroxCLCategory));
-
 static llvm::cl::opt<bool> ExportResults("atrox-export-results",
                                          llvm::cl::desc("export results"),
                                          llvm::cl::cat(AtroxCLCategory));
@@ -204,39 +197,6 @@ bool LoopBodyClonerPass::perform(
     auto itrInfo = BuildITRInfo(li, *BuildPDG(func, &GetMDR(func)));
     auto &SE = GetSE(func);
     auto &AA = GetAA(func);
-
-    // NOTE
-    // this does not update the iterator info with the uncond branch instruction
-    // that might be added by block splitting
-    // however that instruction can acquire the mode of its immediately
-    // preceding instruction
-    if (SeparateBlocksOption) {
-      auto loops = li.getLoopsInPreorder();
-
-      for (auto *curLoop : loops) {
-        BlockModeChangePointMapTy modeChanges;
-        BlockModeMapTy blockModes;
-
-        auto infoOrError = itrInfo->getIteratorInfoFor(curLoop);
-
-        if (!infoOrError) {
-          continue;
-        }
-        auto &info = *infoOrError;
-
-        bool found =
-            FindPartitionPoints(*curLoop, info, blockModes, modeChanges);
-
-        if (found) {
-          SplitAtPartitionPoints(modeChanges, blockModes, &dt, &li);
-          hasChanged = true;
-          LLVM_DEBUG(llvm::dbgs() << "partition points found: "
-                                  << modeChanges.size() << '\n';);
-        } else {
-          LLVM_DEBUG(llvm::dbgs() << "No partition points found\n";);
-        }
-      }
-    }
 
     if (SelectionStrategyOption ==
         SelectionStrategy::IteratorRecognitionBased) {
