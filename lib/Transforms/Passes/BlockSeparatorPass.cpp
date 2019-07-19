@@ -12,6 +12,10 @@
 
 #include "Atrox/Transforms/BlockSeparator.hpp"
 
+#include "private/PDGUtils.hpp"
+
+#include "private/ITRUtils.hpp"
+
 #include "private/PassCommandLineOptions.hpp"
 
 #include "llvm/Pass.h"
@@ -25,6 +29,15 @@
 
 #include "llvm/IR/LegacyPassManager.h"
 // using llvm::PassManagerBase
+
+#include "llvm/IR/Dominators.h"
+// using llvm::DominatorTree
+
+#include "llvm/Analysis/LoopInfo.h"
+// using llvm::LoopInfo
+
+#include "llvm/Analysis/MemoryDependenceAnalysis.h"
+// using llvm::MemoryDependenceResults
 
 #include "llvm/Transforms/IPO/PassManagerBuilder.h"
 // using llvm::PassManagerBuilder
@@ -91,7 +104,9 @@ BlockSeparatorPass::BlockSeparatorPass() {
   llvm::cl::ParseEnvironmentOptions(DEBUG_TYPE, PASS_CMDLINE_OPTIONS_ENVVAR);
 }
 
-bool BlockSeparatorPass::perform(llvm::Function &F) {
+bool BlockSeparatorPass::perform(llvm::Function &F, llvm::DominatorTree *DT,
+                                 llvm::LoopInfo *LI,
+                                 llvm::MemoryDependenceResults *MDR) {
   bool hasChanged = false;
 
   if (F.isDeclaration()) {
@@ -106,30 +121,84 @@ bool BlockSeparatorPass::perform(llvm::Function &F) {
     if (found == AtroxFunctionWhiteList.end()) {
       return hasChanged;
     }
-  }
 
-  LLVM_DEBUG(llvm::dbgs() << "processing func: " << F.getName() << '\n';);
+    LLVM_DEBUG(llvm::dbgs() << "processing func: " << F.getName() << '\n';);
+
+    auto itrInfo = BuildITRInfo(*LI, *BuildPDG(F, MDR));
+
+    // NOTE
+    // this does not update the iterator info with the uncond branch instruction
+    // that might be added by block splitting
+    // however that instruction can acquire the mode of its immediately
+    // preceding instruction
+    auto loops = LI->getLoopsInPreorder();
+
+    for (auto *curLoop : loops) {
+      BlockModeChangePointMapTy modeChanges;
+      BlockModeMapTy blockModes;
+
+      auto infoOrError = itrInfo->getIteratorInfoFor(curLoop);
+
+      if (!infoOrError) {
+        continue;
+      }
+      auto &info = *infoOrError;
+
+      bool found = FindPartitionPoints(*curLoop, info, blockModes, modeChanges);
+
+      if (found) {
+        SplitAtPartitionPoints(modeChanges, blockModes, DT, LI);
+        hasChanged = true;
+        LLVM_DEBUG(llvm::dbgs() << "partition points found: "
+                                << modeChanges.size() << '\n';);
+      } else {
+        LLVM_DEBUG(llvm::dbgs() << "No partition points found\n";);
+      }
+    }
+  }
 
   return hasChanged;
 }
 
 llvm::PreservedAnalyses
 BlockSeparatorPass::run(llvm::Function &F, llvm::FunctionAnalysisManager &FAM) {
-  bool hasChanged = perform(F);
 
-  return hasChanged ? llvm::PreservedAnalyses::all()
-                    : llvm::PreservedAnalyses::none();
+  auto *DT = &FAM.getResult<llvm::DominatorTreeAnalysis>(F);
+  auto *LI = &FAM.getResult<llvm::LoopAnalysis>(F);
+  auto &MDR = FAM.getResult<llvm::MemoryDependenceAnalysis>(F);
+
+  bool hasChanged = perform(F, DT, LI, &MDR);
+
+  if (!hasChanged) {
+    return llvm::PreservedAnalyses::all();
+  }
+
+  llvm::PreservedAnalyses PA;
+  PA.preserve<llvm::DominatorTreeAnalysis>();
+  PA.preserve<llvm::LoopAnalysis>();
+
+  return PA;
 }
 
 // legacy passmanager pass
 
 void BlockSeparatorLegacyPass::getAnalysisUsage(llvm::AnalysisUsage &AU) const {
+  AU.addRequired<llvm::DominatorTreeWrapperPass>();
+  AU.addRequired<llvm::LoopInfoWrapperPass>();
+  AU.addRequired<llvm::MemoryDependenceWrapperPass>();
+
+  AU.addPreserved<llvm::DominatorTreeWrapperPass>();
+  AU.addPreserved<llvm::LoopInfoWrapperPass>();
 }
 
 bool BlockSeparatorLegacyPass::runOnFunction(llvm::Function &F) {
   BlockSeparatorPass pass;
 
-  return pass.perform(F);
+  auto *DT = &getAnalysis<llvm::DominatorTreeWrapperPass>().getDomTree();
+  auto *LI = &getAnalysis<llvm::LoopInfoWrapperPass>().getLoopInfo();
+  auto &MDR = getAnalysis<llvm::MemoryDependenceWrapperPass>().getMemDep();
+
+  return pass.perform(F, DT, LI, &MDR);
 }
 
 } // namespace atrox

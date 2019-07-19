@@ -21,6 +21,9 @@
 
 namespace llvm {
 class Function;
+class DominatorTree;
+class LoopInfo;
+class MemoryDependenceResults;
 } // namespace llvm
 
 #define ATROX_BLOCKSEPARATOR_PASS_NAME "atrox-block-separator"
@@ -32,7 +35,8 @@ class BlockSeparatorPass : public llvm::PassInfoMixin<BlockSeparatorPass> {
 public:
   BlockSeparatorPass();
 
-  bool perform(llvm::Function &F);
+  bool perform(llvm::Function &F, llvm::DominatorTree *DT, llvm::LoopInfo *LI,
+               llvm::MemoryDependenceResults *MDR);
 
   llvm::PreservedAnalyses run(llvm::Function &F,
                               llvm::FunctionAnalysisManager &FAM);
