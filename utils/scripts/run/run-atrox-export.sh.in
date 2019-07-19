@@ -14,9 +14,11 @@ opt \
   -globals-aa \
   -scev-aa \
   -tbaa \
+  -atrox-block-separator \
   -atrox-lbc-pass \
   -atrox-selection-strategy=witr \
   -atrox-export-results \
+  -debug-only=atrox-block-separator \
   -debug-only=atrox-loop-body-clone \
   -debug-only=atrox-selector \
   -o ${OUTPUT_FILENAME} \
