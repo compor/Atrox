@@ -134,6 +134,9 @@ bool BlockSeparatorPass::perform(llvm::Function &F, llvm::DominatorTree *DT,
   // preceding instruction
 
   for (auto *curLoop : LI->getLoopsInPreorder()) {
+    LLVM_DEBUG(llvm::dbgs() << "processing loop with header: "
+                            << curLoop->getHeader()->getName() << '\n';);
+
     BlockModeChangePointMapTy modeChanges;
     BlockModeMapTy blockModes;
 
@@ -145,14 +148,12 @@ bool BlockSeparatorPass::perform(llvm::Function &F, llvm::DominatorTree *DT,
     auto &info = *infoOrError;
 
     bool found = FindPartitionPoints(*curLoop, info, blockModes, modeChanges);
+    LLVM_DEBUG(llvm::dbgs() << "partition points found: " << modeChanges.size()
+                            << '\n';);
 
     if (found) {
       SplitAtPartitionPoints(modeChanges, blockModes, DT, LI);
       hasChanged = true;
-      LLVM_DEBUG(llvm::dbgs() << "partition points found: "
-                              << modeChanges.size() << '\n';);
-    } else {
-      LLVM_DEBUG(llvm::dbgs() << "No partition points found\n";);
     }
   }
 
