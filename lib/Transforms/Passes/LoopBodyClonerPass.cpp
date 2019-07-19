@@ -150,8 +150,6 @@ bool LoopBodyClonerPass::perform(
     std::function<llvm::ScalarEvolution &(llvm::Function &)> &GetSE,
     std::function<llvm::MemoryDependenceResults &(llvm::Function &)> &GetMDR,
     std::function<llvm::AAResults &(llvm::Function &)> &GetAA) {
-  bool hasChanged = false;
-
   llvm::SmallVector<llvm::Function *, 32> workList;
   workList.reserve(M.size());
 
@@ -166,24 +164,21 @@ bool LoopBodyClonerPass::perform(
     AtroxReportsDir = dirOrErr.get();
   }
 
+  auto not_in = [](const auto &C, const auto &E) {
+    return C.end() == std::find(std::begin(C), std::end(C), E);
+  };
+
   for (auto &func : M) {
-    if (func.isDeclaration()) {
+    if (func.isDeclaration() ||
+        (AtroxFunctionWhiteList.size() &&
+         not_in(AtroxFunctionWhiteList, std::string{func.getName()}))) {
       continue;
-    }
-
-    if (AtroxFunctionWhiteList.size()) {
-      auto found =
-          std::find(AtroxFunctionWhiteList.begin(),
-                    AtroxFunctionWhiteList.end(), std::string{func.getName()});
-
-      if (found == AtroxFunctionWhiteList.end()) {
-        continue;
-      }
     }
 
     workList.push_back(&func);
   }
 
+  bool hasChanged = false;
   while (!workList.empty()) {
     auto &func = *workList.pop_back_val();
 

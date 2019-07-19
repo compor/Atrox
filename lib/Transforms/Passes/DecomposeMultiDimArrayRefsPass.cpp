@@ -95,24 +95,19 @@ DecomposeMultiDimArrayRefsPass::DecomposeMultiDimArrayRefsPass() {
 }
 
 bool DecomposeMultiDimArrayRefsPass::perform(llvm::Function &F) {
-  bool hasChanged = false;
+  auto not_in = [](const auto &C, const auto &E) {
+    return C.end() == std::find(std::begin(C), std::end(C), E);
+  };
 
-  if (F.isDeclaration()) {
-    return hasChanged;
-  }
-
-  if (AtroxFunctionWhiteList.size()) {
-    auto found =
-        std::find(AtroxFunctionWhiteList.begin(), AtroxFunctionWhiteList.end(),
-                  std::string{F.getName()});
-
-    if (found == AtroxFunctionWhiteList.end()) {
-      return hasChanged;
-    }
+  if (F.isDeclaration() ||
+      (AtroxFunctionWhiteList.size() &&
+       not_in(AtroxFunctionWhiteList, std::string{F.getName()}))) {
+    return false;
   }
 
   LLVM_DEBUG(llvm::dbgs() << "processing func: " << F.getName() << '\n';);
 
+  bool hasChanged = false;
   MemAccInstVisitor accesses;
   accesses.visit(F);
 

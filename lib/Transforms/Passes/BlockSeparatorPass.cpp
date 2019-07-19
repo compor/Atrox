@@ -107,20 +107,14 @@ BlockSeparatorPass::BlockSeparatorPass() {
 bool BlockSeparatorPass::perform(llvm::Function &F, llvm::DominatorTree *DT,
                                  llvm::LoopInfo *LI,
                                  llvm::MemoryDependenceResults *MDR) {
-  bool hasChanged = false;
+  auto not_in = [](const auto &C, const auto &E) {
+    return C.end() == std::find(std::begin(C), std::end(C), E);
+  };
 
-  if (F.isDeclaration()) {
-    return hasChanged;
-  }
-
-  if (AtroxFunctionWhiteList.size()) {
-    auto found =
-        std::find(AtroxFunctionWhiteList.begin(), AtroxFunctionWhiteList.end(),
-                  std::string{F.getName()});
-
-    if (found == AtroxFunctionWhiteList.end()) {
-      return hasChanged;
-    }
+  if (F.isDeclaration() ||
+      (AtroxFunctionWhiteList.size() &&
+       not_in(AtroxFunctionWhiteList, std::string{F.getName()}))) {
+    return false;
   }
 
   LLVM_DEBUG(llvm::dbgs() << "processing func: " << F.getName() << '\n';);
@@ -133,6 +127,7 @@ bool BlockSeparatorPass::perform(llvm::Function &F, llvm::DominatorTree *DT,
   // however that instruction can acquire the mode of its immediately
   // preceding instruction
 
+  bool hasChanged = false;
   for (auto *curLoop : LI->getLoopsInPreorder()) {
     LLVM_DEBUG(llvm::dbgs() << "processing loop with header: "
                             << curLoop->getHeader()->getName() << '\n';);
