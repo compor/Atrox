@@ -145,6 +145,7 @@ set(LIB_SOURCES
   "lib/Debug.cpp"
   "lib/Passes/PassCommandLineOptions.cpp"
   "lib/Passes/RegisterPasses.cpp"
+  "lib/Support/IR/GeneralUtils.cpp"
   "lib/Support/IR/ArgUtils.cpp"
   "lib/Analysis/NaiveSelector.cpp"
   "lib/Analysis/PayloadWeights.cpp"
