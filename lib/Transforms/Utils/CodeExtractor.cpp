@@ -16,6 +16,7 @@
 #include "Atrox/Transforms/Utils/CodeExtractor.hpp"
 
 #include "Atrox/Transforms/DecomposeMultiDimArrayRefs.hpp"
+#include "Atrox/Support/IR/GeneralUtils.hpp"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -1589,6 +1590,11 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
     }
   }
 
+  // skip sinking/hoisting when cloning
+  // make sure to strip lifetime markers in cloned region
+  SinkingCands.clear();
+  HoistingCands.clear();
+
   // Now sink all instructions which only have non-phi uses inside the region
   for (auto *II : SinkingCands)
     cast<Instruction>(II)->moveBefore(*newFuncRoot,
@@ -1660,6 +1666,10 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
       }
     }
   }
+
+  InstructionEraser ie;
+  ie.visit(newFunction);
+  ie.process();
 
   LLVM_DEBUG(if (VerifyOption && verifyFunction(*newFunction)) {
     newFunction->dump();
