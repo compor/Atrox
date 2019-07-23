@@ -183,10 +183,7 @@ public:
       }
     }
 
-    llvm::SmallVector<ArgDirection, 16> argDirs;
     MemoryAccessInfo mai{blocks, AA};
-    GenerateArgDirection(inputs, outputs, oiMap, argDirs, &mai);
-
     MemAccInstVisitor accesses;
     accesses.visit(blocks.begin(), blocks.end());
 
@@ -218,40 +215,59 @@ public:
     }
 #endif // !defined(NDEBUG)
 
-    llvm::SmallVector<bool, 16> argIteratorVariance;
-
-    if (!ITRInfo) {
-      argIteratorVariance.resize(argDirs.size(), false);
-    } else {
-      auto infoOrError = ITRInfo.getValue()->getIteratorInfoFor(&L);
-      if (!infoOrError) {
-        LLVM_DEBUG(llvm::dbgs() << "No iterator info for loop\n";);
-      }
-      auto info = *infoOrError;
-
-      GenerateArgIteratorVariance(inputs, outputs, info, argIteratorVariance);
-    }
-
     ce.setInputs(inputs);
     ce.setOutputs(outputs);
     ce.setStackAllocas(toStackAllocate, &toStackAllocateInit);
     ce.setAccesses(&accesses);
     auto *extractedFunc = ce.cloneCodeRegion(false);
-    hasChanged |= extractedFunc ? true : false;
 
-    if (ShouldStoreInfo && extractedFunc) {
-      std::vector<ArgSpec> specs;
+    if (extractedFunc) {
+      hasChanged |= true;
 
-      assert(extractedFunc->arg_size() == argDirs.size() &&
-             "Arguments and their specs must be the same number!");
-
-      auto argIt = extractedFunc->arg_begin();
-      for (size_t i = 0; i < argDirs.size(); ++i) {
-        specs.push_back({argIt->getName(), argDirs[i], argIteratorVariance[i]});
-        ++argIt;
+      // remove bidirectional inputs
+      llvm::SmallVector<llvm::Value *, 4> toRemove;
+      for (auto *e : inputs) {
+        if (IsBidirectional(e, oiMap)) {
+          toRemove.push_back(e);
+        }
       }
 
-      StoreInfo.push_back({extractedFunc, &L, specs});
+      for (auto *e : toRemove) {
+        inputs.remove(e);
+      }
+
+      llvm::SmallVector<ArgDirection, 16> argDirs;
+      GenerateArgDirection(inputs, outputs, oiMap, argDirs, &mai);
+
+      llvm::SmallVector<bool, 16> argIteratorVariance;
+
+      if (!ITRInfo) {
+        argIteratorVariance.resize(argDirs.size(), false);
+      } else {
+        auto infoOrError = ITRInfo.getValue()->getIteratorInfoFor(&L);
+        if (!infoOrError) {
+          LLVM_DEBUG(llvm::dbgs() << "No iterator info for loop\n";);
+        }
+        auto info = *infoOrError;
+
+        GenerateArgIteratorVariance(inputs, outputs, info, argIteratorVariance);
+      }
+
+      if (ShouldStoreInfo) {
+        std::vector<ArgSpec> specs;
+
+        assert(extractedFunc->arg_size() == argDirs.size() &&
+               "Arguments and their specs must be the same number!");
+
+        auto argIt = extractedFunc->arg_begin();
+        for (size_t i = 0; i < argDirs.size(); ++i) {
+          specs.push_back(
+              {argIt->getName(), argDirs[i], argIteratorVariance[i]});
+          ++argIt;
+        }
+
+        StoreInfo.push_back({extractedFunc, &L, specs});
+      }
     }
 
     return hasChanged;
