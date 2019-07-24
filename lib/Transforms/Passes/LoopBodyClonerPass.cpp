@@ -74,6 +74,12 @@
 // using std::begin
 // using std::end
 
+#include <fstream>
+// using std::ifstream
+
+#include <string>
+// using std::string
+
 #define DEBUG_TYPE ATROX_LOOPBODYCLONER_PASS_NAME
 #define PASS_CMDLINE_OPTIONS_ENVVAR "LOOPBODYCLONER_CMDLINE_OPTIONS"
 
@@ -168,9 +174,20 @@ bool LoopBodyClonerPass::perform(
     return C.end() == std::find(std::begin(C), std::end(C), E);
   };
 
+  llvm::SmallVector<std::string, 32> AtroxFunctionWhiteList;
+
+  if (AtroxFunctionWhiteListFile.getPosition()) {
+    std::ifstream wlFile{AtroxFunctionWhiteListFile};
+
+    std::string funcName;
+    while (wlFile >> funcName) {
+      AtroxFunctionWhiteList.push_back(funcName);
+    }
+  }
+
   for (auto &F : M) {
     if (F.isDeclaration() ||
-        (AtroxFunctionWhiteList.size() &&
+        (AtroxFunctionWhiteListFile.getPosition() &&
          not_in(AtroxFunctionWhiteList, std::string{F.getName()}))) {
       continue;
     }

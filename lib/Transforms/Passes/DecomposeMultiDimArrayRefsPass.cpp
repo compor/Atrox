@@ -49,6 +49,9 @@
 #include <algorithm>
 // using std::find
 
+#include <fstream>
+// using std::ifstream
+
 #include <string>
 // using std::string
 
@@ -95,12 +98,23 @@ DecomposeMultiDimArrayRefsPass::DecomposeMultiDimArrayRefsPass() {
 }
 
 bool DecomposeMultiDimArrayRefsPass::perform(llvm::Function &F) {
+  llvm::SmallVector<std::string, 32> AtroxFunctionWhiteList;
+
+  if (AtroxFunctionWhiteListFile.getPosition()) {
+    std::ifstream wlFile{AtroxFunctionWhiteListFile};
+
+    std::string funcName;
+    while (wlFile >> funcName) {
+      AtroxFunctionWhiteList.push_back(funcName);
+    }
+  }
+
   auto not_in = [](const auto &C, const auto &E) {
     return C.end() == std::find(std::begin(C), std::end(C), E);
   };
 
   if (F.isDeclaration() ||
-      (AtroxFunctionWhiteList.size() &&
+      (AtroxFunctionWhiteListFile.getPosition() &&
        not_in(AtroxFunctionWhiteList, std::string{F.getName()}))) {
     return false;
   }

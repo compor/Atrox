@@ -21,5 +21,5 @@ extern llvm::cl::opt<bool> AtroxIgnoreAliasing;
 
 extern llvm::cl::opt<std::string> AtroxReportsDir;
 
-extern llvm::cl::list<std::string> AtroxFunctionWhiteList;
+extern llvm::cl::opt<std::string> AtroxFunctionWhiteListFile;
 

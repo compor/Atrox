@@ -28,8 +28,8 @@ llvm::cl::opt<std::string>
                     llvm::cl::desc("output reports directory"),
                     llvm::cl::cat(AtroxCLCategory));
 
-llvm::cl::list<std::string> AtroxFunctionWhiteList(
-    "atrox-func-wl", llvm::cl::Hidden,
+llvm::cl::opt<std::string> AtroxFunctionWhiteListFile(
+    "atrox-func-wl-file", llvm::cl::Hidden,
     llvm::cl::desc("process only the specified functions"),
     llvm::cl::cat(AtroxCLCategory));
 
