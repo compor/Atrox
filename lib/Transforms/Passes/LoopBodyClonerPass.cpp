@@ -168,30 +168,32 @@ bool LoopBodyClonerPass::perform(
     return C.end() == std::find(std::begin(C), std::end(C), E);
   };
 
-  for (auto &func : M) {
-    if (func.isDeclaration() ||
+  for (auto &F : M) {
+    if (F.isDeclaration() ||
         (AtroxFunctionWhiteList.size() &&
-         not_in(AtroxFunctionWhiteList, std::string{func.getName()}))) {
+         not_in(AtroxFunctionWhiteList, std::string{F.getName()}))) {
       continue;
     }
 
-    workList.push_back(&func);
+    workList.push_back(&F);
   }
 
   bool hasChanged = false;
   while (!workList.empty()) {
-    auto &func = *workList.pop_back_val();
+    auto &F = *workList.pop_back_val();
+
+    LLVM_DEBUG(llvm::dbgs() << "processing func: " << F.getName() << '\n';);
 
     LoopBodyCloner lpc{M, ExportResults};
 
     // TODO consider obtaining these from pass manager and
     // preserving/invalidating them appropriately
-    auto dt = llvm::DominatorTree(const_cast<llvm::Function &>(func));
+    auto dt = llvm::DominatorTree(const_cast<llvm::Function &>(F));
     llvm::LoopInfo li{dt};
 
-    auto itrInfo = BuildITRInfo(li, *BuildPDG(func, &GetMDR(func)));
-    auto &SE = GetSE(func);
-    auto &AA = GetAA(func);
+    auto itrInfo = BuildITRInfo(li, *BuildPDG(F, &GetMDR(F)));
+    auto &SE = GetSE(F);
+    auto &AA = GetAA(F);
 
     if (SelectionStrategyOption ==
         SelectionStrategy::IteratorRecognitionBased) {
