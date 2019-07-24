@@ -12,7 +12,6 @@
 // using llvm::dbgs
 
 #include <algorithm>
-// using std::count_if
 // using std::find_if
 // using std::reverse
 
@@ -26,16 +25,6 @@ namespace atrox {
 bool ReorderInputs(llvm::SetVector<llvm::Value *> &Inputs,
                    const iteratorrecognition::IteratorInfo &Info) {
   bool changed = false;
-
-  auto n = std::count_if(Inputs.begin(), Inputs.end(), [&Info](auto *e) {
-    if (const auto *i = llvm::dyn_cast<const llvm::Instruction>(e)) {
-      return Info.isIterator(i);
-    }
-
-    return false;
-  });
-
-  assert(n == 1 && "Cannot handle more than 1 input iterators!");
 
   auto found = std::find_if(Inputs.begin(), Inputs.end(), [&Info](auto *e) {
     if (const auto *i = llvm::dyn_cast<const llvm::Instruction>(e)) {

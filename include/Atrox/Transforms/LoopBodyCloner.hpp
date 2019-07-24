@@ -53,6 +53,9 @@
 // using DEBUG macro
 // using llvm::dbgs
 
+#include <algorithm>
+// using std::count_if
+
 #include <cassert>
 // using assert
 
@@ -105,6 +108,22 @@ public:
       }
 
       auto info = *infoOrError;
+
+      auto n = std::count_if(inputs.begin(), inputs.end(), [&info](auto *e) {
+        if (const auto *i = llvm::dyn_cast<const llvm::Instruction>(e)) {
+          return info.isIterator(i);
+        }
+
+        return false;
+      });
+
+      if (n != 1) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "Cannot handle " << n << " input iterators!\n");
+
+        return false;
+      }
+
       ReorderInputs(inputs, info);
     }
 
