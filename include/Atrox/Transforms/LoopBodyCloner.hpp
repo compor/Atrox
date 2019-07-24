@@ -242,15 +242,9 @@ public:
 
       llvm::SmallVector<bool, 16> argIteratorVariance;
 
-      if (!ITRInfo) {
+      if (!IDT) {
         argIteratorVariance.resize(argDirs.size(), false);
       } else {
-        auto infoOrError = ITRInfo.getValue()->getIteratorInfoFor(&L);
-        if (!infoOrError) {
-          LLVM_DEBUG(llvm::dbgs() << "No iterator info for loop\n";);
-        }
-        auto info = *infoOrError;
-
         GenerateArgIteratorVariance(L, inputs, outputs, *IDT,
                                     argIteratorVariance);
       }
@@ -276,23 +270,28 @@ public:
   }
 
   template <typename T>
-  bool cloneLoops(
-      llvm::LoopInfo &LI, T &Selector,
-      llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *> ITRInfo,
-      llvm::ScalarEvolution *SE = nullptr, llvm::AAResults *AA = nullptr) {
+  bool cloneLoops(llvm::LoopInfo &LI, T &Selector,
+                  llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *>
+                      ITRInfoOrEmpty,
+                  llvm::ScalarEvolution *SE = nullptr,
+                  llvm::AAResults *AA = nullptr) {
     bool hasChanged = false;
 
     auto loops = LI.getLoopsInPreorder();
     LoopBoundsAnalyzer lba{LI, *SE};
 
-    iteratorrecognition::DispositionTracker idt{**ITRInfo};
+    llvm::Optional<iteratorrecognition::DispositionTracker> idtOrEmpty;
+    if (auto *ITRInfo = *ITRInfoOrEmpty) {
+      idtOrEmpty = iteratorrecognition::DispositionTracker{*ITRInfo};
+    }
 
     for (auto *curLoop : loops) {
       lba.analyze(curLoop);
 
       LLVM_DEBUG(llvm::dbgs() << "processing loop: "
                               << curLoop->getHeader()->getName() << '\n';);
-      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfo, idt, lba, AA);
+      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfoOrEmpty,
+                              idtOrEmpty, lba, AA);
     }
 
     return hasChanged;
