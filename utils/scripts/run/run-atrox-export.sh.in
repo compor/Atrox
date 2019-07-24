@@ -21,6 +21,7 @@ opt \
   -debug-only=atrox-block-separator \
   -debug-only=atrox-loop-body-clone \
   -debug-only=atrox-selector \
+  -debug-only=atrox-lbc-pass \
   -o ${OUTPUT_FILENAME} \
   ${FILENAME}
 
