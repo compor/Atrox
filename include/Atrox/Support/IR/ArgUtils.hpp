@@ -12,6 +12,8 @@
 
 #include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
 
+#include "IteratorRecognition/Analysis/DispositionTracker.hpp"
+
 #include "llvm/IR/ValueMap.h"
 // using llvm::ValueMap
 
@@ -42,9 +44,9 @@ bool ReorderInputs(llvm::SetVector<llvm::Value *> &Inputs,
                    const iteratorrecognition::IteratorInfo &ITRInfo);
 
 void GenerateArgIteratorVariance(
-    const llvm::SetVector<llvm::Value *> &Inputs,
+    const llvm::Loop &CurL, const llvm::SetVector<llvm::Value *> &Inputs,
     const llvm::SetVector<llvm::Value *> &Outputs,
-    const iteratorrecognition::IteratorInfo &Info,
+    iteratorrecognition::DispositionTracker &IDT,
     llvm::SmallVectorImpl<bool> &ArgIteratorVariance);
 
 void GenerateArgDirection(

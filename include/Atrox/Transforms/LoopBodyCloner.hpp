@@ -75,6 +75,7 @@ public:
   bool cloneLoop(
       llvm::Loop &L, llvm::LoopInfo &LI, T &Selector,
       llvm::Optional<iteratorrecognition::IteratorRecognitionInfo *> ITRInfo,
+      llvm::Optional<iteratorrecognition::DispositionTracker> IDT,
       LoopBoundsAnalyzer &LBA, llvm::AAResults *AA = nullptr) {
     llvm::SmallVector<llvm::BasicBlock *, 32> blocks;
     Selector.getBlocks(L, blocks);
@@ -250,7 +251,8 @@ public:
         }
         auto info = *infoOrError;
 
-        GenerateArgIteratorVariance(inputs, outputs, info, argIteratorVariance);
+        GenerateArgIteratorVariance(L, inputs, outputs, *IDT,
+                                    argIteratorVariance);
       }
 
       if (ShouldStoreInfo) {
@@ -283,12 +285,14 @@ public:
     auto loops = LI.getLoopsInPreorder();
     LoopBoundsAnalyzer lba{LI, *SE};
 
+    iteratorrecognition::DispositionTracker idt{**ITRInfo};
+
     for (auto *curLoop : loops) {
       lba.analyze(curLoop);
 
       LLVM_DEBUG(llvm::dbgs() << "processing loop: "
                               << curLoop->getHeader()->getName() << '\n';);
-      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfo, lba, AA);
+      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfo, idt, lba, AA);
     }
 
     return hasChanged;

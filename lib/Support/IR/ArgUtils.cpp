@@ -4,8 +4,6 @@
 
 #include "Atrox/Support/IR/ArgUtils.hpp"
 
-#include "IteratorRecognition/Analysis/DispositionTracker.hpp"
-
 #include "llvm/IR/Value.h"
 // using llvm::Value
 
@@ -71,14 +69,12 @@ bool ReorderInputs(llvm::SetVector<llvm::Value *> &Inputs,
 }
 
 void GenerateArgIteratorVariance(
-    const llvm::SetVector<llvm::Value *> &Inputs,
+    const llvm::Loop &CurL, const llvm::SetVector<llvm::Value *> &Inputs,
     const llvm::SetVector<llvm::Value *> &Outputs,
-    const iteratorrecognition::IteratorInfo &Info,
+    iteratorrecognition::DispositionTracker &IDT,
     llvm::SmallVectorImpl<bool> &ArgIteratorVariance) {
-  iteratorrecognition::DispositionTracker ida{Info};
-
   for (auto *e : Inputs) {
-    switch (static_cast<int>(ida.getDisposition(e))) {
+    switch (static_cast<int>(IDT.getDisposition(e, &CurL, true))) {
     default:
       ArgIteratorVariance.push_back(false);
       break;
@@ -89,7 +85,7 @@ void GenerateArgIteratorVariance(
   }
 
   for (auto *e : Outputs) {
-    switch (static_cast<int>(ida.getDisposition(e))) {
+    switch (static_cast<int>(IDT.getDisposition(e, &CurL, true))) {
     default:
       ArgIteratorVariance.push_back(false);
       break;
