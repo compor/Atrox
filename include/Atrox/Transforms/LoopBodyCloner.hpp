@@ -10,6 +10,8 @@
 
 #include "Atrox/Support/IR/ArgUtils.hpp"
 
+#include "Atrox/Support/IR/GeneralUtils.hpp"
+
 #include "Atrox/Analysis/LoopBoundsAnalyzer.hpp"
 
 #include "Atrox/Analysis/MemoryAccessInfo.hpp"
@@ -17,6 +19,8 @@
 #include "Atrox/Exchange/Info.hpp"
 
 #include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
+
+#include "private/PassCommandLineOptions.hpp"
 
 #include "llvm/IR/Module.h"
 // using llvm::Module
@@ -88,6 +92,17 @@ public:
                  << "skipping loop because no blocks were selected.\n");
 
       return false;
+    }
+
+    if (AtroxSkipCalls) {
+      CallDetector cd;
+      cd.visit(blocks.begin(), blocks.end());
+
+      if (cd) {
+        LLVM_DEBUG(llvm::dbgs()
+                   << "skipping loop because it contains calls.\n");
+        return false;
+      }
     }
 
     bool hasChanged = false;

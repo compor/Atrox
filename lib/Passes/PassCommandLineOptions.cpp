@@ -23,6 +23,11 @@ llvm::cl::opt<bool>
                         llvm::cl::desc("use specific aliasing assumptions"),
                         llvm::cl::cat(AtroxCLCategory));
 
+llvm::cl::opt<bool> AtroxSkipCalls("atrox-skip-regions-with-calls",
+                                   llvm::cl::init(true),
+                                   llvm::cl::desc("skip regions with calls"),
+                                   llvm::cl::cat(AtroxCLCategory));
+
 llvm::cl::opt<std::string>
     AtroxReportsDir("atrox-reports-dir",
                     llvm::cl::desc("output reports directory"),

@@ -19,6 +19,8 @@ extern llvm::cl::OptionCategory AtroxCLCategory;
 
 extern llvm::cl::opt<bool> AtroxIgnoreAliasing;
 
+extern llvm::cl::opt<bool> AtroxSkipCalls;
+
 extern llvm::cl::opt<std::string> AtroxReportsDir;
 
 extern llvm::cl::opt<std::string> AtroxFunctionWhiteListFile;
