@@ -40,6 +40,11 @@ bool MemoryAccessInfo::isRead(llvm::Value *V) {
         if (llvm::isRefSet(mri) && !llvm::isModSet(mri)) {
           return true;
         }
+
+        auto *ci = llvm::dyn_cast<llvm::CallInst>(&i);
+        if (isReadByCall(V, ci)) {
+          return true;
+        }
       }
     }
   } else if (auto *arg = llvm::dyn_cast<llvm::Argument>(V)) {
@@ -71,6 +76,11 @@ bool MemoryAccessInfo::isWrite(llvm::Value *V) {
         if (llvm::isModSet(mri)) {
           return true;
         }
+
+        auto *ci = llvm::dyn_cast<llvm::CallInst>(&i);
+        if (isWrittenByCall(V, ci)) {
+          return true;
+        }
       }
     }
   } else if (auto *arg = llvm::dyn_cast<llvm::Argument>(V)) {
@@ -90,6 +100,101 @@ bool MemoryAccessInfo::isWrite(llvm::Value *V) {
   }
 
   return false;
+}
+
+bool MemoryAccessInfo::isReadByCall(llvm::Value *V, llvm::CallInst *CI) {
+  if (CI == nullptr) {
+    return false;
+  }
+
+  if (CI->doesNotAccessMemory()) {
+    return false;
+  }
+
+  auto *CalledFunction = CI->getCalledFunction();
+
+  switch (AA->getModRefBehavior(CalledFunction)) {
+  case llvm::FMRB_UnknownModRefBehavior:
+    llvm_unreachable("unhandled mod ref behaviour");
+  case llvm::FMRB_DoesNotAccessMemory:
+    return false;
+  case llvm::FMRB_DoesNotReadMemory:
+    return false;
+  case llvm::FMRB_OnlyAccessesInaccessibleMem:
+  case llvm::FMRB_OnlyAccessesInaccessibleOrArgMem:
+    llvm_unreachable("unhandled mod ref behaviour");
+    // LLVM_DEBUG(llvm::dbgs() << "unhandled mod ref behaviour\n");
+    return false;
+  case llvm::FMRB_OnlyReadsMemory:
+    // TODO possible read from globals
+    return true;
+  case llvm::FMRB_OnlyReadsArgumentPointees:
+  case llvm::FMRB_OnlyAccessesArgumentPointees: {
+    for (const auto &Arg : CI->arg_operands()) {
+      if (!Arg->getType()->isPointerTy()) {
+        continue;
+      }
+
+      if (Arg == V) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+  }
+
+  // TODO we need to refine this to account for aliasing in the function via
+  // other ways
+  return true;
+}
+
+bool MemoryAccessInfo::isWrittenByCall(llvm::Value *V, llvm::CallInst *CI) {
+  if (CI == nullptr) {
+    return false;
+  }
+
+  if (CI->doesNotAccessMemory()) {
+    return false;
+  }
+
+  auto *CalledFunction = CI->getCalledFunction();
+
+  switch (AA->getModRefBehavior(CalledFunction)) {
+  case llvm::FMRB_UnknownModRefBehavior:
+    llvm_unreachable("unhandled mod ref behaviour");
+  case llvm::FMRB_DoesNotAccessMemory:
+    return false;
+  case llvm::FMRB_DoesNotReadMemory:
+    return false;
+  case llvm::FMRB_OnlyAccessesInaccessibleMem:
+  case llvm::FMRB_OnlyAccessesInaccessibleOrArgMem:
+    llvm_unreachable("unhandled mod ref behaviour");
+    // LLVM_DEBUG(llvm::dbgs() << "unhandled mod ref behaviour\n");
+    return false;
+  case llvm::FMRB_OnlyReadsMemory:
+    return false;
+  case llvm::FMRB_OnlyReadsArgumentPointees:
+    return false;
+  case llvm::FMRB_OnlyAccessesArgumentPointees: {
+    for (const auto &Arg : CI->arg_operands()) {
+      if (!Arg->getType()->isPointerTy()) {
+        continue;
+      }
+
+      if (Arg == V) {
+        return true;
+      }
+    }
+
+    // TODO refine here if the value passed is aliasing the tested value?
+    return false;
+  }
+  }
+
+  // TODO we need to refine this to account for aliasing in the function via
+  // other ways
+  return true;
 }
 
 } // namespace atrox

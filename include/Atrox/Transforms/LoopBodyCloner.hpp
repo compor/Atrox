@@ -95,7 +95,7 @@ public:
     }
 
     if (AtroxSkipCalls) {
-      CallDetector cd;
+      CallDetector cd{TargetModule};
       cd.visit(blocks.begin(), blocks.end());
 
       if (cd) {

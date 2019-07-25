@@ -19,6 +19,7 @@ namespace llvm {
 class Value;
 class BasicBlock;
 class Instruction;
+class CallInst;
 class AAResults;
 } // namespace llvm
 
@@ -35,6 +36,9 @@ public:
 
   bool isRead(llvm::Value *V);
   bool isWrite(llvm::Value *V);
+
+  bool isReadByCall(llvm::Value *V, llvm::CallInst *CI);
+  bool isWrittenByCall(llvm::Value *V, llvm::CallInst *CI);
 };
 
 } // namespace atrox
