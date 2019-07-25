@@ -10,6 +10,12 @@
 #include "llvm/IR/IntrinsicInst.h"
 // using llvm::IntrinsicInst
 
+#include "llvm/IR/Instructions.h"
+// using llvm::CallInst
+
+#include "llvm/IR/Function.h"
+// using llvm::Function
+
 #include "llvm/Support/Debug.h"
 // using LLVM_DEBUG macro
 // using llvm::dbgs
@@ -63,6 +69,27 @@ bool InstructionEraser::process() {
                 [](auto *e) { e->eraseFromParent(); });
 
   return hasChanged;
+}
+
+//
+
+void CallDetector::visitCallInst(llvm::CallInst &I) {
+  if (!CurM) {
+    Calls.push_back(&I);
+    return;
+  }
+
+  auto *curFunc = I.getCalledFunction();
+
+  if (!curFunc) {
+    Calls.push_back(&I);
+    return;
+  }
+
+  if (!curFunc->isDeclaration()) {
+    Calls.push_back(&I);
+    return;
+  }
 }
 
 } // namespace atrox
