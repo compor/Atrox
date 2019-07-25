@@ -182,11 +182,27 @@ public:
 
           auto *start =
               llvm::dyn_cast_or_null<llvm::SCEVConstant>(lbInfo.Start);
-          assert(start && "Outer induction variable is not constant!");
+          llvm::ConstantInt *initVal = nullptr;
+          if (start) {
+            // FIXME maybe checkthat the induction var is an integer type before
+            // casting
+            initVal = llvm::dyn_cast<llvm::ConstantInt>(
+                llvm::ConstantInt::get(lbInfo.InductionVariable->getType(),
+                                       start->getValue()->getZExtValue()));
+          } else {
+            // TODO what happens here if the value is used in the loop in a
+            // division or a subtraction that results in a negative number?
+            uint64_t val = 0;
+            initVal = llvm::dyn_cast<llvm::ConstantInt>(llvm::ConstantInt::get(
+                lbInfo.InductionVariable->getType(), val));
 
-          auto *initVal =
-              llvm::ConstantInt::get(lbInfo.InductionVariable->getType(),
-                                     start->getValue()->getZExtValue());
+            LLVM_DEBUG(llvm::dbgs()
+                           << "outer induction variable: "
+                           << *lbInfo.InductionVariable
+                           << " does not have a constant start value: "
+                           << *lbInfo.Start << " set to: " << val << '\n';);
+          }
+
           toStackAllocateInit.push_back(initVal);
           toStackAllocate.insert(v);
         }
