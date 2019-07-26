@@ -120,12 +120,6 @@ public:
                 BlockFrequencyInfo *BFI = nullptr,
                 BranchProbabilityInfo *BPI = nullptr);
 
-  /// Perform the extraction, returning the new function.
-  ///
-  /// Returns zero when called on a CodeExtractor instance where isEligible
-  /// returns false.
-  Function *extractCodeRegion();
-
   Function *cloneCodeRegion(bool DetectInputsOutputs = true);
 
   /// Test whether this code extractor is eligible.
@@ -211,11 +205,6 @@ private:
   void severSplitPHINodes(BasicBlock *&Header);
   void splitReturnBlocks();
 
-  Function *constructFunction(const ValueSet &inputs, const ValueSet &outputs,
-                              BasicBlock *header, BasicBlock *newRootNode,
-                              BasicBlock *newHeader, Function *oldFunction,
-                              Module *M);
-
   Function *cloneFunction(const ValueSet &inputs, const ValueSet &outputs,
                           BasicBlock *header, BasicBlock *newRootNode,
                           BasicBlock *newExitNode, Function *oldFunction,
@@ -227,14 +216,6 @@ private:
 
   void moveBlocksToFunction(ArrayRef<BasicBlock *> Blocks,
                             Function *newFunction);
-
-  void calculateNewCallTerminatorWeights(
-      BasicBlock *CodeReplacer,
-      DenseMap<BasicBlock *, BlockFrequency> &ExitWeights,
-      BranchProbabilityInfo *BPI);
-
-  void emitCallAndSwitchStatement(Function *newFunction, BasicBlock *newHeader,
-                                  ValueSet &inputs, ValueSet &outputs);
 };
 
 } // namespace atrox
