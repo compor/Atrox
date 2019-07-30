@@ -49,12 +49,10 @@ void GenerateArgIteratorVariance(
     iteratorrecognition::DispositionTracker &IDT,
     llvm::SmallVectorImpl<bool> &ArgIteratorVariance);
 
-void GenerateArgDirection(
-    const llvm::SetVector<llvm::Value *> &Inputs,
-    const llvm::SetVector<llvm::Value *> &Outputs,
-    const llvm::ValueMap<llvm::Value *, llvm::Value *> &OutputToInput,
-    llvm::SmallVectorImpl<ArgDirection> &ArgDirs,
-    MemoryAccessInfo *MAI = nullptr);
+void GenerateArgDirection(const llvm::SetVector<llvm::Value *> &Inputs,
+                          const llvm::SetVector<llvm::Value *> &Outputs,
+                          llvm::SmallVectorImpl<ArgDirection> &ArgDirs,
+                          MemoryAccessInfo *MAI = nullptr);
 
 } // namespace atrox
 

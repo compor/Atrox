@@ -18,6 +18,10 @@
 #include <cassert>
 // using assert
 
+#include "llvm/Support/Debug.h"
+// using DEBUG macro
+// using llvm::dbgs
+
 #define DEBUG_TYPE "atrox-argutils"
 
 namespace atrox {
@@ -26,8 +30,12 @@ bool ReorderInputs(llvm::SetVector<llvm::Value *> &Inputs,
                    const iteratorrecognition::IteratorInfo &Info) {
   bool changed = false;
 
+  assert(!Inputs.empty() && "Inputs cannot be empty!");
+
   auto found = std::find_if(Inputs.begin(), Inputs.end(), [&Info](auto *e) {
     if (const auto *i = llvm::dyn_cast<const llvm::Instruction>(e)) {
+      LLVM_DEBUG(llvm::dbgs()
+                     << "checking if input : " << *i << " is iterator\n";);
       return Info.isIterator(i);
     }
 
@@ -85,39 +93,52 @@ void GenerateArgIteratorVariance(
   }
 }
 
-void GenerateArgDirection(
-    const llvm::SetVector<llvm::Value *> &Inputs,
-    const llvm::SetVector<llvm::Value *> &Outputs,
-    const llvm::ValueMap<llvm::Value *, llvm::Value *> &OutputToInput,
-    llvm::SmallVectorImpl<ArgDirection> &ArgDirs, MemoryAccessInfo *MAI) {
+void GenerateArgDirection(const llvm::SetVector<llvm::Value *> &Inputs,
+                          const llvm::SetVector<llvm::Value *> &Outputs,
+                          llvm::SmallVectorImpl<ArgDirection> &ArgDirs,
+                          MemoryAccessInfo *MAI) {
 
   for (auto *v : Inputs) {
-    if (IsBidirectional(v, OutputToInput)) {
+    if (!v->getType()->isPointerTy()) {
+      ArgDirs.push_back(ArgDirection::AD_Inbound);
       continue;
     }
 
     if (MAI && v->getType()->isPointerTy()) {
+      ArgDirection dir = ArgDirection::AD_Inbound;
+
       if (MAI->isWrite(v)) {
-        ArgDirs.push_back(ArgDirection::AD_Both);
-        continue;
+        dir = ArgDirection::AD_Outbound;
+        // ArgDirs.push_back(ArgDirection::AD_Both);
+        // continue;
+
+        if (MAI->isRead(v)) {
+          dir = ArgDirection::AD_Both;
+        }
       }
 
-      if (MAI->isRead(v)) {
-        ArgDirs.push_back(ArgDirection::AD_Inbound);
-      }
+      // if (MAI->isRead(v)) {
+      // dir |= ArgDirection::AD_Inbound;
+      // ArgDirs.push_back(ArgDirection::AD_Inbound);
+      //}
+
+      ArgDirs.push_back(dir);
     } else {
-      if (!IsBidirectional(v, OutputToInput)) {
-        ArgDirs.push_back(ArgDirection::AD_Inbound);
-      } else {
-        ArgDirs.push_back(ArgDirection::AD_Both);
-      }
+      ArgDirs.push_back(ArgDirection::AD_Both);
     }
   }
 
   for (auto *v : Outputs) {
-    ArgDirs.push_back(IsBidirectional(v, OutputToInput)
-                          ? ArgDirection::AD_Both
-                          : ArgDirection::AD_Outbound);
+    if (!MAI) {
+      ArgDirs.push_back(ArgDirection::AD_Both);
+    } else {
+      if (MAI->isRead(v)) {
+        ArgDirs.push_back(ArgDirection::AD_Both);
+        continue;
+      }
+
+      ArgDirs.push_back(ArgDirection::AD_Outbound);
+    }
   }
 }
 
