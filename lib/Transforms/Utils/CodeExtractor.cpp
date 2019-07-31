@@ -15,8 +15,9 @@
 
 #include "Atrox/Transforms/Utils/CodeExtractor.hpp"
 
-#include "Atrox/Transforms/DecomposeMultiDimArrayRefs.hpp"
+#include "Atrox/Support/IR/ArgUtils.hpp"
 #include "Atrox/Support/IR/GeneralUtils.hpp"
+#include "Atrox/Transforms/DecomposeMultiDimArrayRefs.hpp"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -29,6 +30,7 @@
 #include "llvm/Analysis/BlockFrequencyInfoImpl.h"
 #include "llvm/Analysis/BranchProbabilityInfo.h"
 #include "llvm/Analysis/LoopInfo.h"
+#include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/IR/Argument.h"
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
@@ -230,35 +232,30 @@ buildExtractionBlockSet(ArrayRef<BasicBlock *> BBs, DominatorTree *DT,
 
     // All blocks other than the first must not have predecessors outside of
     // the subgraph which is being extracted.
-    for (auto *PBB : predecessors(BB))
+    for (auto *PBB : predecessors(BB)) {
       if (!Result.count(PBB)) {
-        LLVM_DEBUG(
-            dbgs() << "No blocks in this region may have entries from "
-                      "outside the region except for the first block!\n");
-        return {};
+        LLVM_DEBUG(dbgs() << "Block with term: " << *BB->getTerminator()
+                          << " has predecessor from outside the region: "
+                          << *PBB->getTerminator() << '\n';);
+
+        // return {};
       }
+    }
   }
 
   return Result;
 }
 
-CodeExtractor::CodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT,
+CodeExtractor::CodeExtractor(ArrayRef<BasicBlock *> BBs, Loop &L,
+                             iteratorrecognition::IteratorInfo *IterInfo,
+                             LoopBoundsAnalyzer *LBA, DominatorTree *DT,
                              bool AggregateArgs, BlockFrequencyInfo *BFI,
                              BranchProbabilityInfo *BPI, bool AllowVarArgs,
                              bool AllowAlloca)
-    : DT(DT), AggregateArgs(AggregateArgs || AggregateArgsOpt), BFI(BFI),
-      BPI(BPI), AllowVarArgs(AllowVarArgs),
+    : CurL(L), IterInfo(IterInfo), LBA(LBA), DT(DT),
+      AggregateArgs(AggregateArgs || AggregateArgsOpt), BFI(BFI), BPI(BPI),
+      AllowVarArgs(AllowVarArgs),
       Blocks(buildExtractionBlockSet(BBs, DT, AllowVarArgs, AllowAlloca)),
-      Accesses(nullptr) {}
-
-CodeExtractor::CodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs,
-                             BlockFrequencyInfo *BFI,
-                             BranchProbabilityInfo *BPI)
-    : DT(&DT), AggregateArgs(AggregateArgs || AggregateArgsOpt), BFI(BFI),
-      BPI(BPI), AllowVarArgs(false),
-      Blocks(buildExtractionBlockSet(L.getBlocks(), &DT,
-                                     /* AllowVarArgs */ false,
-                                     /* AllowAlloca */ false)),
       Accesses(nullptr) {}
 
 /// definedInRegion - Return true if the specified value is defined in the
@@ -411,6 +408,117 @@ CodeExtractor::findOrCreateBlockForHoisting(BasicBlock *CommonExitBlock) {
   return CommonExitBlock;
 }
 
+void CodeExtractor::prepare() {
+  Inputs.clear();
+  Outputs.clear();
+  InputToOutputMap.clear();
+  OutputToInputMap.clear();
+
+  findInputsOutputs(Inputs, Outputs);
+  findGlobalInputsOutputs(Inputs, Outputs);
+
+  mapInputsOutputs(Inputs, Outputs, InputToOutputMap, OutputToInputMap);
+
+  if (IterInfo) {
+    ReorderInputs(Inputs, *IterInfo);
+  }
+
+  findStackAllocatable();
+}
+
+void CodeExtractor::findStackAllocatable() {
+  if (!LBA) {
+    LLVM_DEBUG(
+        llvm::dbgs()
+        << "skipping because there is no loop bounds analyzer information\n");
+    return;
+  }
+
+  llvm::SmallPtrSet<llvm::BasicBlock *, 8> scopeBlocks{Blocks.begin(),
+                                                       Blocks.end()};
+
+  auto evalLBA = *LBA;
+  evalLBA.evaluate(0, 5, &CurL);
+
+  for (auto *v : Inputs) {
+    auto isCondUse =
+        LBA->isValueUsedOnlyInLoopNestConditions(v, &CurL, scopeBlocks);
+    auto isOuterIndVar = LBA->isValueOuterLoopInductionVariable(v, &CurL);
+    auto isInnerIndVar = LBA->isValueInnerLoopInductionVariable(v, &CurL);
+
+    auto isBoth = isCondUse && isOuterIndVar;
+    if (isBoth) {
+      LLVM_DEBUG(llvm::dbgs() << "Input is both used in condition and as "
+                                 "outer induction variable: "
+                              << *v << '\n';);
+    }
+    assert(!isBoth && "Input is of both kinds!");
+
+    isBoth = isCondUse && isInnerIndVar;
+    if (isBoth) {
+      LLVM_DEBUG(llvm::dbgs() << "Input is both used in condition and as "
+                                 "inner induction variable: "
+                              << *v << '\n';);
+    }
+    assert(!isBoth && "Input is of both kinds!");
+
+    if (isInnerIndVar) {
+      auto lbInfoOrErr = evalLBA.getInfo(v);
+      if (!lbInfoOrErr) {
+        LLVM_DEBUG(llvm::dbgs() << "Missing loop iteration space info!\n";);
+        // assert?
+      }
+      auto lbInfo = *lbInfoOrErr;
+
+      assert(llvm::dyn_cast_or_null<llvm::SCEVConstant>(lbInfo.Start) &&
+             "Inner induction variable is not constant!");
+
+      StackAllocaInits.push_back(nullptr);
+      StackAllocas.insert(v);
+    }
+
+    if (isOuterIndVar) {
+      auto lbInfoOrErr = evalLBA.getInfo(v);
+      if (!lbInfoOrErr) {
+        LLVM_DEBUG(llvm::dbgs() << "Missing loop iteration space info!\n";);
+        // assert?
+      }
+      auto lbInfo = *lbInfoOrErr;
+
+      auto *start = llvm::dyn_cast_or_null<llvm::SCEVConstant>(lbInfo.Start);
+      llvm::ConstantInt *initVal = nullptr;
+      if (start) {
+        // FIXME maybe check that the induction var is an integer type before
+        // casting
+        initVal = llvm::dyn_cast<llvm::ConstantInt>(
+            llvm::ConstantInt::get(lbInfo.InductionVariable->getType(),
+                                   start->getValue()->getZExtValue()));
+      } else {
+        // TODO what happens here if the value is used in the loop in a
+        // division or a subtraction that results in a negative number?
+        uint64_t val = 354;
+        initVal = llvm::dyn_cast<llvm::ConstantInt>(
+            llvm::ConstantInt::get(lbInfo.InductionVariable->getType(), val));
+
+        LLVM_DEBUG(llvm::dbgs()
+                       << "outer induction variable: "
+                       << *lbInfo.InductionVariable
+                       << " does not have a constant start value: "
+                       << *lbInfo.Start << " set to: " << val << '\n';);
+      }
+
+      StackAllocaInits.push_back(initVal);
+      StackAllocas.insert(v);
+    }
+
+    if (isCondUse) {
+      auto *initVal = llvm::ConstantInt::get(v->getType(), 5);
+      StackAllocaInits.push_back(initVal);
+      StackAllocas.insert(v);
+    }
+  }
+}
+
 void CodeExtractor::findAllocas(ValueSet &SinkCands, ValueSet &HoistCands,
                                 BasicBlock *&ExitBlock) const {
   Function *Func = (*Blocks.begin())->getParent();
@@ -518,8 +626,7 @@ void CodeExtractor::findAllocas(ValueSet &SinkCands, ValueSet &HoistCands,
   }
 }
 
-void CodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
-                                      const ValueSet &SinkCands) const {
+void CodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs) {
   for (BasicBlock *BB : Blocks) {
     // If a used value is defined outside the region, it's an input.  If an
     // instruction is used outside the region, it's an output.
@@ -527,7 +634,7 @@ void CodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
       for (User::op_iterator OI = II.op_begin(), OE = II.op_end(); OI != OE;
            ++OI) {
         Value *V = *OI;
-        if (!SinkCands.count(V) && definedInCaller(Blocks, V))
+        if (definedInCaller(Blocks, V))
           Inputs.insert(V);
       }
 
@@ -541,7 +648,7 @@ void CodeExtractor::findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
 }
 
 void CodeExtractor::findGlobalInputsOutputs(ValueSet &Inputs,
-                                            ValueSet &Outputs) const {
+                                            ValueSet &Outputs) {
   llvm::SmallVector<GetElementPtrInst *, 16> geps;
 
   for (BasicBlock *BB : Blocks) {
@@ -597,12 +704,14 @@ void CodeExtractor::mapInputsOutputs(const ValueSet &Inputs,
       }
     }
   }
-}
 
-void CodeExtractor::generateArgDirection(
-    const ValueSet &Inputs, const ValueSet &Outputs,
-    SmallVectorImpl<ArgDirection> &ArgDirs) {
-  GenerateArgDirection(Inputs, Outputs, OutputToInputMap, ArgDirs);
+  for (size_t i = 0; i < Outputs.size(); ++i) {
+    if (Inputs.count(Outputs[i])) {
+      auto found = std::find(Inputs.begin(), Inputs.end(), Outputs[i]);
+      IOMap[*found] = i;
+      OIMap[Outputs[i]] = *found;
+    }
+  }
 }
 
 /// severSplitPHINodes - If a PHI node has multiple inputs from outside of the
@@ -715,25 +824,13 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
   LLVM_DEBUG(dbgs() << "inputs: " << inputs.size() << "\n");
   LLVM_DEBUG(dbgs() << "outputs: " << outputs.size() << "\n");
 
-  // This function returns unsigned, outputs will go back by reference.
-  // switch (NumExitBlocks) {
-  // case 0:
-  // case 1:
   RetTy = Type::getVoidTy(header->getContext());
-  // break;
-  // case 2:
-  // RetTy = Type::getInt1Ty(header->getContext());
-  // break;
-  // default:
-  // RetTy = Type::getInt16Ty(header->getContext());
-  // break;
-  //}
 
   std::vector<Type *> paramTy;
 
   ValueSet usedInputs;
   for (Value *value : inputs) {
-    if (isBidirectional(value)) {
+    if (!isInputOnly(value)) {
       LLVM_DEBUG(dbgs() << "skipping value used in func: " << *value << "\n");
       continue;
     }
@@ -749,11 +846,16 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
 
   // Add the types of the output values to the function's argument list.
   for (Value *output : outputs) {
-    LLVM_DEBUG(dbgs() << "instr used in func: " << *output << "\n");
+    LLVM_DEBUG(dbgs() << "value used in func: " << *output << "\n");
     if (AggregateArgs)
       paramTy.push_back(output->getType());
-    else
-      paramTy.push_back(PointerType::getUnqual(output->getType()));
+    else {
+      if (output->getType()->isPointerTy()) {
+        paramTy.push_back(output->getType());
+      } else {
+        paramTy.push_back(PointerType::getUnqual(output->getType()));
+      }
+    }
   }
 
   LLVM_DEBUG({
@@ -909,7 +1011,14 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
     auto argIt = AI + InputToOutputMap[v];
     auto *ti = newFunction->begin()->getTerminator();
 
-    auto *ld = new LoadInst(&*argIt, "", ti);
+    // auto *ld = new LoadInst(&*argIt, "", ti);
+    llvm::Value *ld = nullptr;
+
+    if (!outv->getType()->isPointerTy()) {
+      ld = new LoadInst(&*argIt, "", ti);
+    } else {
+      ld = &*argIt;
+    }
 
     std::vector<User *> Users(v->user_begin(), v->user_end());
     for (User *use : Users)
@@ -941,7 +1050,7 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
     }
 
     auto *loadClone =
-        new llvm::LoadInst(cloneAlloca, "cond", newRootNode->getTerminator());
+        new llvm::LoadInst(cloneAlloca, "strepl", newRootNode->getTerminator());
 
     std::vector<User *> Users(StackAllocas[i]->user_begin(),
                               StackAllocas[i]->user_end());
@@ -985,7 +1094,9 @@ Function *CodeExtractor::cloneFunction(const ValueSet &inputs,
     auto argIt = AI + InputToOutputMap[v];
     auto *ti = newExitNode->getTerminator();
 
-    auto *st = new StoreInst(outv, &*argIt, false, ti);
+    if (!outv->getType()->isPointerTy()) {
+      auto *st = new StoreInst(outv, &*argIt, false, ti);
+    }
   }
 
   return newFunction;
@@ -1020,7 +1131,7 @@ void CodeExtractor::moveBlocksToFunction(ArrayRef<BasicBlock *> Blocks,
   }
 }
 
-Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
+Function *CodeExtractor::cloneCodeRegion() {
   if (!isEligible())
     return nullptr;
 
@@ -1047,9 +1158,6 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
         return nullptr;
     }
   }
-
-  ValueSet SinkingCands, HoistingCands;
-  BasicBlock *CommonExit = nullptr;
 
   // If we have to split PHI nodes or the entry block, do so now.
   severSplitPHINodes(header);
@@ -1079,60 +1187,11 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
   }
   newFuncRoot->getInstList().push_back(BranchI);
 
-  findAllocas(SinkingCands, HoistingCands, CommonExit);
-  assert(HoistingCands.empty() || CommonExit);
-
-  // Find inputs to, outputs from the code region.
-  if (DetectInputsOutputs) {
-    Inputs.clear();
-    Outputs.clear();
-    SinkingCands.clear();
-    findInputsOutputs(Inputs, Outputs, SinkingCands);
-
-    ValueSet gInputs, gOutputs;
-    findGlobalInputsOutputs(gInputs, gOutputs);
-
-    LLVM_DEBUG(dbgs() << "global inputs: \n";
-               for (auto *e
-                    : gInputs) { dbgs() << *e << '\n'; });
-
-    LLVM_DEBUG(dbgs() << "global outputs: \n";
-               for (auto *e
-                    : gOutputs) { dbgs() << *e << '\n'; });
-
-    for (auto *e : gInputs) {
-      Inputs.insert(e);
-    }
-
-    for (auto *e : gOutputs) {
-      Outputs.insert(e);
-    }
-  }
-
-  // skip sinking/hoisting when cloning
-  // make sure to strip lifetime markers in cloned region
-  SinkingCands.clear();
-  HoistingCands.clear();
-
-  // Now sink all instructions which only have non-phi uses inside the region
-  for (auto *II : SinkingCands)
-    cast<Instruction>(II)->moveBefore(*newFuncRoot,
-                                      newFuncRoot->getFirstInsertionPt());
-
-  if (!HoistingCands.empty()) {
-    auto *HoistToBlock = findOrCreateBlockForHoisting(CommonExit);
-    Instruction *TI = HoistToBlock->getTerminator();
-    for (auto *II : HoistingCands)
-      cast<Instruction>(II)->moveBefore(TI);
-  }
-
   for (auto *b : Blocks) {
     CloneBlocks.push_back(CloneBasicBlock(b, VMap, ".clone", oldFunction));
     VMap[b] = CloneBlocks.back();
   }
   auto *cloneHeader = cast_or_null<llvm::BasicBlock>(VMap[header]);
-
-  mapInputsOutputs(Inputs, Outputs, InputToOutputMap, OutputToInputMap);
 
   auto *newFuncExit = BasicBlock::Create(header->getContext(), "exit");
 
@@ -1168,6 +1227,35 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
 
   remapCloneBlocks();
 
+  // auto &DL = newFunction->getParent()->getDataLayout();
+  // for (size_t i = 0; i < StackAllocas.size(); ++i) {
+  // llvm::dbgs() << "REPL " << *StackAllocas[i] << '\n';
+  // auto *cloneAlloca = new llvm::AllocaInst(StackAllocas[i]->getType(),
+  // DL.getAllocaAddrSpace(), nullptr,
+  //"", newFuncRoot->getTerminator());
+  // if (StackAllocaInits.size() && StackAllocaInits[i]) {
+  // auto *storeClone = new llvm::StoreInst(StackAllocaInits[i], cloneAlloca,
+  // newFuncRoot->getTerminator());
+  //}
+
+  // auto *loadClone =
+  // new llvm::LoadInst(cloneAlloca, "conco", newFuncRoot->getTerminator());
+
+  // std::vector<User *> Users(StackAllocas[i]->user_begin(),
+  // StackAllocas[i]->user_end());
+  // for (User *use : Users) {
+  // if (Instruction *inst = dyn_cast<Instruction>(use)) {
+  // llvm::dbgs() << "USE " << *StackAllocas[i] << '\n';
+  // auto found = std::find(CloneBlocks.begin(), CloneBlocks.end(),
+  // inst->getParent());
+  // if (found != CloneBlocks.end()) {
+  // llvm::dbgs() << "REPL2 " << *StackAllocas[i] << '\n';
+  // inst->replaceUsesOfWith(StackAllocas[i], loadClone);
+  //}
+  //}
+  //}
+  //}
+
   moveBlocksToFunction(CloneBlocks, newFunction);
 
   // Propagate personality info to the new function if there is one.
@@ -1190,7 +1278,7 @@ Function *CodeExtractor::cloneCodeRegion(bool DetectInputsOutputs) {
   ie.visit(newFunction);
   ie.process();
 
-  LLVM_DEBUG(if (VerifyOption && verifyFunction(*newFunction)) {
+  LLVM_DEBUG(if (VerifyOption && verifyFunction(*newFunction, &llvm::dbgs())) {
     newFunction->dump();
     report_fatal_error("verifyFunction failed!");
   });

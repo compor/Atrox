@@ -20,6 +20,8 @@
 
 #include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
 
+#include "llvm/Analysis/LoopIterator.h"
+
 #include "private/PassCommandLineOptions.hpp"
 
 #include "llvm/IR/Module.h"
@@ -94,6 +96,18 @@ public:
       return false;
     }
 
+    // reorder blocks
+    llvm::LoopBlocksRPO rpo(&L);
+    rpo.perform(&LI);
+    llvm::SmallVector<llvm::BasicBlock *, 32> initial{blocks};
+    blocks.clear();
+    for (auto *bb : rpo) {
+      if (initial.end() != std::find(initial.begin(), initial.end(), bb)) {
+        blocks.push_back(bb);
+      }
+    }
+    initial.clear();
+
     if (AtroxSkipCalls) {
       CallDetector cd{TargetModule};
       cd.visit(blocks.begin(), blocks.end());
@@ -106,15 +120,7 @@ public:
     }
 
     bool hasChanged = false;
-    atrox::CodeExtractor ce{blocks};
-
-    llvm::SetVector<llvm::Value *> inputs, outputs, sinks;
-    ce.findInputsOutputs(inputs, outputs, sinks);
-    ce.findGlobalInputsOutputs(inputs, outputs);
-
-    CodeExtractor::InputToOutputMapTy ioMap;
-    CodeExtractor::OutputToInputMapTy oiMap;
-    ce.mapInputsOutputs(inputs, outputs, ioMap, oiMap);
+    iteratorrecognition::IteratorInfo info;
 
     if (ITRInfo) {
       auto infoOrError = ITRInfo.getValue()->getIteratorInfoFor(&L);
@@ -122,115 +128,28 @@ public:
         LLVM_DEBUG(llvm::dbgs() << "No iterator info for loop\n";);
       }
 
-      auto info = *infoOrError;
+      info = *infoOrError;
+    }
 
-      auto n = std::count_if(inputs.begin(), inputs.end(), [&info](auto *e) {
-        if (const auto *i = llvm::dyn_cast<const llvm::Instruction>(e)) {
-          return info.isIterator(i);
-        }
+    atrox::CodeExtractor ce{blocks, L, &info, &LBA};
+    ce.prepare();
 
-        return false;
-      });
+    if (info) {
+      auto n = std::count_if(
+          ce.getPureInputs().begin(), ce.getPureInputs().end(),
+          [&info](auto *e) {
+            if (const auto *i = llvm::dyn_cast<const llvm::Instruction>(e)) {
+              return info.isIterator(i);
+            }
+
+            return false;
+          });
 
       if (n != 1) {
         LLVM_DEBUG(llvm::dbgs()
                    << "Cannot handle " << n << " input iterators!\n");
 
         return false;
-      }
-
-      ReorderInputs(inputs, info);
-    }
-
-    llvm::SetVector<llvm::Value *> toStackAllocate;
-    llvm::SmallVector<llvm::Value *, 8> toStackAllocateInit;
-    {
-      llvm::SmallPtrSet<llvm::BasicBlock *, 8> scopeBlocks{blocks.begin(),
-                                                           blocks.end()};
-      auto evalLBA = LBA;
-      evalLBA.evaluate(0, 5, &L);
-
-      for (auto *v : inputs) {
-        auto isCondUse =
-            LBA.isValueUsedOnlyInLoopNestConditions(v, &L, scopeBlocks);
-        auto isOuterIndVar = LBA.isValueOuterLoopInductionVariable(v, &L);
-        auto isInnerIndVar = LBA.isValueInnerLoopInductionVariable(v, &L);
-
-        auto isBoth = isCondUse && isOuterIndVar;
-        if (isBoth) {
-          LLVM_DEBUG(llvm::dbgs() << "Input is both used in condition and as "
-                                     "outer induction variable: "
-                                  << *v << '\n';);
-        }
-        assert(!isBoth && "Input is of both kinds!");
-
-        isBoth = isCondUse && isInnerIndVar;
-        if (isBoth) {
-          LLVM_DEBUG(llvm::dbgs() << "Input is both used in condition and as "
-                                     "inner induction variable: "
-                                  << *v << '\n';);
-        }
-        assert(!isBoth && "Input is of both kinds!");
-
-        if (isInnerIndVar) {
-          auto lbInfoOrErr = evalLBA.getInfo(v);
-          if (!lbInfoOrErr) {
-            LLVM_DEBUG(llvm::dbgs() << "Missing loop iteration space info!\n";);
-            // assert?
-          }
-          auto lbInfo = *lbInfoOrErr;
-
-          assert(llvm::dyn_cast_or_null<llvm::SCEVConstant>(lbInfo.Start) &&
-                 "Inner induction variable is not constant!");
-
-          toStackAllocateInit.push_back(nullptr);
-          toStackAllocate.insert(v);
-        }
-
-        if (isOuterIndVar) {
-          auto lbInfoOrErr = evalLBA.getInfo(v);
-          if (!lbInfoOrErr) {
-            LLVM_DEBUG(llvm::dbgs() << "Missing loop iteration space info!\n";);
-            // assert?
-          }
-          auto lbInfo = *lbInfoOrErr;
-
-          auto *start =
-              llvm::dyn_cast_or_null<llvm::SCEVConstant>(lbInfo.Start);
-          llvm::ConstantInt *initVal = nullptr;
-          if (start) {
-            // FIXME maybe checkthat the induction var is an integer type before
-            // casting
-            initVal = llvm::dyn_cast<llvm::ConstantInt>(
-                llvm::ConstantInt::get(lbInfo.InductionVariable->getType(),
-                                       start->getValue()->getZExtValue()));
-          } else {
-            // TODO what happens here if the value is used in the loop in a
-            // division or a subtraction that results in a negative number?
-            uint64_t val = 0;
-            initVal = llvm::dyn_cast<llvm::ConstantInt>(llvm::ConstantInt::get(
-                lbInfo.InductionVariable->getType(), val));
-
-            LLVM_DEBUG(llvm::dbgs()
-                           << "outer induction variable: "
-                           << *lbInfo.InductionVariable
-                           << " does not have a constant start value: "
-                           << *lbInfo.Start << " set to: " << val << '\n';);
-          }
-
-          toStackAllocateInit.push_back(initVal);
-          toStackAllocate.insert(v);
-        }
-
-        if (isCondUse) {
-          auto *initVal = llvm::ConstantInt::get(v->getType(), 5);
-          toStackAllocateInit.push_back(initVal);
-          toStackAllocate.insert(v);
-        }
-      }
-
-      for (auto *e : toStackAllocate) {
-        inputs.remove(e);
       }
     }
 
@@ -240,63 +159,33 @@ public:
 
 #if !defined(NDEBUG)
     LLVM_DEBUG({
-      llvm::dbgs() << "inputs: " << inputs.size() << "\n";
-      llvm::dbgs() << "outputs: " << outputs.size() << "\n";
-      for (llvm::Value *e : inputs) {
+      llvm::dbgs() << "inputs: " << ce.getPureInputs().size()
+                   << "\noutputs: " << ce.getOutputs().size() << "\n";
+      for (llvm::Value *e : ce.getPureInputs()) {
         llvm::dbgs() << "    value used in func: " << *e << "\n";
       }
-      for (llvm::Value *e : outputs) {
+      for (llvm::Value *e : ce.getOutputs()) {
         llvm::dbgs() << "value used out of func: " << *e << "\n";
       }
-      for (llvm::Value *e : toStackAllocate) {
-        llvm::dbgs() << " to be stack allocated: " << *e << "\n";
-      }
     });
-
-    for (const auto &e : ioMap) {
-      LLVM_DEBUG({
-        llvm::dbgs() << "in: " << *e.first << " -> out: " << e.second << "\n";
-      });
-    }
-
-    for (const auto &e : oiMap) {
-      LLVM_DEBUG({
-        llvm::dbgs() << "out: " << *e.first << " -> in: " << *e.second << "\n";
-      });
-    }
 #endif // !defined(NDEBUG)
 
-    ce.setInputs(inputs);
-    ce.setOutputs(outputs);
-    ce.setStackAllocas(toStackAllocate, &toStackAllocateInit);
     ce.setAccesses(&accesses);
-    auto *extractedFunc = ce.cloneCodeRegion(false);
+    auto *extractedFunc = ce.cloneCodeRegion();
 
     if (extractedFunc) {
       hasChanged |= true;
 
-      // remove bidirectional inputs
-      llvm::SmallVector<llvm::Value *, 4> toRemove;
-      for (auto *e : inputs) {
-        if (IsBidirectional(e, oiMap)) {
-          toRemove.push_back(e);
-        }
-      }
-
-      for (auto *e : toRemove) {
-        inputs.remove(e);
-      }
-
       llvm::SmallVector<ArgDirection, 16> argDirs;
-      GenerateArgDirection(inputs, outputs, oiMap, argDirs, &mai);
+      GenerateArgDirection(ce.getPureInputs(), ce.getOutputs(), argDirs, &mai);
 
       llvm::SmallVector<bool, 16> argIteratorVariance;
 
       if (!IDT) {
         argIteratorVariance.resize(argDirs.size(), false);
       } else {
-        GenerateArgIteratorVariance(L, inputs, outputs, *IDT,
-                                    argIteratorVariance);
+        GenerateArgIteratorVariance(L, ce.getPureInputs(), ce.getOutputs(),
+                                    *IDT, argIteratorVariance);
       }
 
       if (ShouldStoreInfo) {

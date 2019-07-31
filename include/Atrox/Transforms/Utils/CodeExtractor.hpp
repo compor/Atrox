@@ -15,11 +15,15 @@
 #ifndef LLVM_TRANSFORMS_UTILS_CODEEXTRACTOR_H
 #define LLVM_TRANSFORMS_UTILS_CODEEXTRACTOR_H
 
+#include "Atrox/Analysis/LoopBoundsAnalyzer.hpp"
+
 #include "Atrox/Support/MemAccInst.hpp"
 
 #include "Atrox/Support/IR/ArgDirection.hpp"
 
 #include "Atrox/Support/IR/ArgUtils.hpp"
+
+#include "IteratorRecognition/Analysis/IteratorRecognition.hpp"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/DenseMap.h"
@@ -70,6 +74,9 @@ private:
   using ValueSet = SetVector<Value *>;
 
   // Various bits of state computed on construction.
+  Loop &CurL;
+  iteratorrecognition::IteratorInfo *IterInfo;
+  LoopBoundsAnalyzer *LBA;
   DominatorTree *const DT;
   const bool AggregateArgs;
   BlockFrequencyInfo *BFI;
@@ -84,6 +91,7 @@ private:
   ValueSet Inputs, Outputs;
   ValueSet StackAllocas;
   llvm::SmallVector<llvm::Value *, 8> StackAllocaInits;
+  ValueSet PureInputs;
 
   // Bits of intermediate state computed at various phases of extraction.
   SetVector<BasicBlock *> Blocks;
@@ -94,6 +102,11 @@ private:
 
   bool isBidirectional(const llvm::Value *V) {
     return IsBidirectional(V, OutputToInputMap);
+  }
+
+  bool isInputOnly(const llvm::Value *V) {
+    return !IsBidirectional(V, OutputToInputMap) &&
+           !StackAllocas.count(const_cast<llvm::Value *>(V));
   }
 
 public:
@@ -107,20 +120,17 @@ public:
   /// code is extracted, including vastart. If AllowAlloca is true, then
   /// extraction of blocks containing alloca instructions would be possible,
   /// however code extractor won't validate whether extraction is legal.
-  CodeExtractor(ArrayRef<BasicBlock *> BBs, DominatorTree *DT = nullptr,
+  CodeExtractor(ArrayRef<BasicBlock *> BBs, Loop &L,
+                iteratorrecognition::IteratorInfo *IterInfo = nullptr,
+                LoopBoundsAnalyzer *LBA = nullptr, DominatorTree *DT = nullptr,
                 bool AggregateArgs = false, BlockFrequencyInfo *BFI = nullptr,
                 BranchProbabilityInfo *BPI = nullptr, bool AllowVarArgs = false,
                 bool AllowAlloca = false);
 
-  /// Create a code extractor for a loop body.
-  ///
-  /// Behaves just like the generic code sequence constructor, but uses the
-  /// block sequence of the loop.
-  CodeExtractor(DominatorTree &DT, Loop &L, bool AggregateArgs = false,
-                BlockFrequencyInfo *BFI = nullptr,
-                BranchProbabilityInfo *BPI = nullptr);
+  void prepare();
+  void findStackAllocatable();
 
-  Function *cloneCodeRegion(bool DetectInputsOutputs = true);
+  Function *cloneCodeRegion();
 
   /// Test whether this code extractor is eligible.
   ///
@@ -155,6 +165,20 @@ public:
 
   void setAccesses(MemAccInstVisitor *Accesses) { this->Accesses = Accesses; }
 
+  const ValueSet &getPureInputs() {
+    PureInputs.clear();
+
+    for (auto *e : Inputs) {
+      if (isInputOnly(e)) {
+        PureInputs.insert(e);
+      }
+    }
+
+    return PureInputs;
+  }
+
+  const ValueSet &getOutputs() const { return Outputs; }
+
   /// Compute the set of input values and output values for the code.
   ///
   /// These can be used either when performing the extraction or to evaluate
@@ -163,16 +187,12 @@ public:
   /// a code sequence, that sequence is modified, including changing these
   /// sets, before extraction occurs. These modifications won't have any
   /// significant impact on the cost however.
-  void findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs,
-                         const ValueSet &Allocas) const;
+  void findInputsOutputs(ValueSet &Inputs, ValueSet &Outputs);
 
-  void findGlobalInputsOutputs(ValueSet &Inputs, ValueSet &Outputs) const;
+  void findGlobalInputsOutputs(ValueSet &Inputs, ValueSet &Outputs);
 
   void mapInputsOutputs(const ValueSet &Inputs, const ValueSet &Outputs,
                         InputToOutputMapTy &IOMap, OutputToInputMapTy &OIMap);
-
-  void generateArgDirection(const ValueSet &Inputs, const ValueSet &Outputs,
-                            SmallVectorImpl<ArgDirection> &ArgDirs);
 
   /// Check if life time marker nodes can be hoisted/sunk into the outline
   /// region.
