@@ -174,21 +174,21 @@ bool LoopBodyClonerPass::perform(
     return C.end() == std::find(std::begin(C), std::end(C), E);
   };
 
-  llvm::SmallVector<std::string, 32> AtroxFunctionWhiteList;
+  llvm::SmallVector<std::string, 32> FunctionWhiteList;
 
   if (AtroxFunctionWhiteListFile.getPosition()) {
     std::ifstream wlFile{AtroxFunctionWhiteListFile};
 
     std::string funcName;
     while (wlFile >> funcName) {
-      AtroxFunctionWhiteList.push_back(funcName);
+      FunctionWhiteList.push_back(funcName);
     }
   }
 
   for (auto &F : M) {
     if (F.isDeclaration() ||
         (AtroxFunctionWhiteListFile.getPosition() &&
-         not_in(AtroxFunctionWhiteList, std::string{F.getName()}))) {
+         not_in(FunctionWhiteList, std::string{F.getName()}))) {
       continue;
     }
 
