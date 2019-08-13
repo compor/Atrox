@@ -28,10 +28,9 @@ llvm::cl::opt<bool> AtroxSkipCalls("atrox-skip-regions-with-calls",
                                    llvm::cl::desc("skip regions with calls"),
                                    llvm::cl::cat(AtroxCLCategory));
 
-llvm::cl::opt<std::string>
-    AtroxReportsDir("atrox-reports-dir",
-                    llvm::cl::desc("output reports directory"),
-                    llvm::cl::cat(AtroxCLCategory));
+llvm::cl::opt<std::string> AtroxReportsDir("atrox-reports-dir",
+                                           llvm::cl::desc("reports directory"),
+                                           llvm::cl::cat(AtroxCLCategory));
 
 llvm::cl::opt<std::string> AtroxFunctionWhiteListFile(
     "atrox-func-wl-file", llvm::cl::Hidden,
