@@ -339,13 +339,13 @@ configure_file(
 
 file(GLOB BIN_SCRIPTS LIST_DIRECTORIES FALSE RELATIVE
   ${BIN_SCRIPTS_DIR}
-  ${BIN_SCRIPTS_DIR}/*.sh.in)
+  ${BIN_SCRIPTS_DIR}/*.in)
 
 foreach(BIN_SCRIPT_TEMPLATE ${BIN_SCRIPTS})
   get_filename_component(BIN_SCRIPT ${BIN_SCRIPT_TEMPLATE} NAME_WE)
   configure_file(
     "${BIN_SCRIPTS_DIR}/${BIN_SCRIPT_TEMPLATE}"
-    "${CMAKE_INSTALL_BINDIR}/${BIN_SCRIPT}.sh"
+    "${CMAKE_INSTALL_BINDIR}/${BIN_SCRIPT}"
     @ONLY)
 endforeach()
 
