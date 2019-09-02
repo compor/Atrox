@@ -1,0 +1,85 @@
+#!/usr/bin/env python
+"""
+
+"""
+
+from __future__ import print_function
+
+import sys
+import os
+import json
+
+from argparse import ArgumentParser
+
+
+class JSONCombineOrSplit(object):
+    def __init__(self, input_fnames, output_fname_or_prefix):
+        self.input_fnames = input_fnames
+        base = os.path.basename(output_fname_or_prefix)
+        fname, ext = os.path.splitext(base)
+
+        self.output_fname_prefix = fname
+        self.output_fname_suffix = ext or ".json"
+
+        self.output_fname = self.output_fname_prefix + self.output_fname_suffix
+
+        for f in input_fnames:
+            if not os.path.exists(f):
+                msg = 'File {0} does not exist'.format(f)
+                raise FileNotFoundException(msg, filename=f)
+
+    def combine(self):
+        output_list = []
+
+        for f in self.input_fnames:
+            with open(f, "rb") as infile:
+                output_list.append(json.load(infile))
+
+        with open(self.output_fname, "wb") as outfile:
+            json.dump(output_list, outfile)
+
+    def split(self):
+        output_list = []
+
+        for f in self.input_fnames:
+            with open(f, "rb") as infile:
+                output_list.append(json.load(infile))
+
+        for i, o in enumerate(output_list):
+            fname = self.output_fname_prefix + str(
+                i + 1) + self.output_fname_suffix
+            with open(fname, "wb") as outfile:
+                json.dump(output_list[i], outfile)
+
+
+#
+
+if __name__ == '__main__':
+    parser = ArgumentParser(description='Split or Combine a JSON file')
+    parser.add_argument(
+        '-f',
+        '--files',
+        dest='jsonfiles',
+        nargs='*',
+        required=True,
+        help='input JSON files')
+    parser.add_argument(
+        '-o',
+        '--output',
+        dest='output',
+        required=True,
+        help='output JSON file when combining or prefix otherwise')
+    parser.add_argument('-s', '--split', action='store_true')
+
+    args = parser.parse_args()
+
+    #
+
+    jsoncs = JSONCombineOrSplit(args.jsonfiles, args.output)
+
+    if args.split:
+        jsoncs.split()
+    else:
+        jsoncs.combine()
+
+    sys.exit(0)
