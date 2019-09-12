@@ -85,9 +85,14 @@ Value toJSON(ArrayRef<atrox::ArgSpec> ArgSpecs) {
 Value toJSON(const atrox::FunctionArgSpec &FAS) {
   Object root;
 
-  root["func"] = FAS.Func->getName();
-  root["loop"] = iteratorrecognition::json::toJSON(*FAS.CurLoop);
-  root["args"] = toJSON(FAS.Args);
+  root["func"] = FAS.Func ? FAS.Func->getName() : "";
+  root["loop"] = llvm::json::Object();
+  root["args"] = llvm::json::Object();
+
+  if (FAS.CurLoop) {
+    root["loop"] = iteratorrecognition::json::toJSON(*FAS.CurLoop);
+    root["args"] = toJSON(FAS.Args);
+  }
 
   return std::move(root);
 }
