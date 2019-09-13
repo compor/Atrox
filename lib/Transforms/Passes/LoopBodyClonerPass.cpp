@@ -225,7 +225,7 @@ bool LoopBodyClonerPass::perform(
       hasChanged |= lpc.cloneLoops(li, s, &*itrInfo, &SE, &AA);
     }
 
-    if (hasChanged && ExportResults) {
+    if (ExportResults) {
       auto &i = lpc.getInfo();
 
       for (auto &e : i) {
