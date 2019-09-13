@@ -71,12 +71,14 @@ namespace atrox {
 
 class LoopBodyCloner {
   llvm::Module *TargetModule;
-  bool ShouldStoreInfo;
+  bool StoreSuccessInfo, StoreFailInfo;
   llvm::SmallVector<FunctionArgSpec, 32> StoreInfo;
 
 public:
-  explicit LoopBodyCloner(llvm::Module &CurM, bool _ShouldStoreInfo = false)
-      : TargetModule(&CurM), ShouldStoreInfo(_ShouldStoreInfo) {}
+  explicit LoopBodyCloner(llvm::Module &CurM, bool _StoreSuccessInfo = false,
+                          bool _StoreFailInfo = false)
+      : TargetModule(&CurM), StoreSuccessInfo(_StoreSuccessInfo),
+        StoreFailInfo(_StoreFailInfo) {}
 
   auto &getInfo() const { return StoreInfo; }
 
@@ -172,14 +174,14 @@ public:
 
     ce.setAccesses(&accesses);
     auto *extractedFunc = ce.cloneCodeRegion();
+    llvm::SmallVector<ArgDirection, 16> argDirs;
+    std::vector<ArgSpec> specs;
 
     if (extractedFunc) {
-      hasChanged |= true;
-
-      llvm::SmallVector<ArgDirection, 16> argDirs;
-      GenerateArgDirection(ce.getPureInputs(), ce.getOutputs(), argDirs, &mai);
-
+      hasChanged = true;
       llvm::SmallVector<bool, 16> argIteratorVariance;
+
+      GenerateArgDirection(ce.getPureInputs(), ce.getOutputs(), argDirs, &mai);
 
       if (!IDT) {
         argIteratorVariance.resize(argDirs.size(), false);
@@ -188,9 +190,7 @@ public:
                                     *IDT, argIteratorVariance);
       }
 
-      if (ShouldStoreInfo) {
-        std::vector<ArgSpec> specs;
-
+      if (StoreSuccessInfo) {
         assert(extractedFunc->arg_size() == argDirs.size() &&
                "Arguments and their specs must be the same number!");
 
@@ -200,9 +200,11 @@ public:
               {argIt->getName(), argDirs[i], argIteratorVariance[i]});
           ++argIt;
         }
-
-        StoreInfo.push_back({extractedFunc, &L, specs});
       }
+    }
+
+    if (StoreSuccessInfo || StoreFailInfo) {
+      StoreInfo.push_back({extractedFunc, &L, specs});
     }
 
     return hasChanged;
