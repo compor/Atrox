@@ -147,6 +147,12 @@ public:
             return false;
           });
 
+      if (n == 0) {
+        LLVM_DEBUG(llvm::dbgs() << "Cannot handle " << n << " inputs!\n");
+
+        return false;
+      }
+
       if (n != 1) {
         LLVM_DEBUG(llvm::dbgs()
                    << "Cannot handle " << n << " input iterators!\n");

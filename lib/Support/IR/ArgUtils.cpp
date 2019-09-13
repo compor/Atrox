@@ -30,7 +30,9 @@ bool ReorderInputs(llvm::SetVector<llvm::Value *> &Inputs,
                    const iteratorrecognition::IteratorInfo &Info) {
   bool changed = false;
 
-  assert(!Inputs.empty() && "Inputs cannot be empty!");
+  if(Inputs.size()) {
+    return changed;
+  }
 
   auto found = std::find_if(Inputs.begin(), Inputs.end(), [&Info](auto *e) {
     if (const auto *i = llvm::dyn_cast<const llvm::Instruction>(e)) {
@@ -41,9 +43,6 @@ bool ReorderInputs(llvm::SetVector<llvm::Value *> &Inputs,
 
     return false;
   });
-
-  assert(found != Inputs.end() &&
-         "There must be at least one iterator variable!");
 
   if (found != Inputs.begin()) {
     LLVM_DEBUG(llvm::dbgs() << "reordering inputs\n";);
