@@ -79,6 +79,7 @@
 
 #include <string>
 // using std::string
+// using std::to_string
 
 #define DEBUG_TYPE ATROX_LOOPBODYCLONER_PASS_NAME
 #define PASS_CMDLINE_OPTIONS_ENVVAR "LOOPBODYCLONER_CMDLINE_OPTIONS"
@@ -128,9 +129,15 @@ static llvm::cl::opt<SelectionStrategy> SelectionStrategyOption(
                    "weighted iterator recognition based")),
     llvm::cl::cat(AtroxCLCategory));
 
-static llvm::cl::opt<bool> ExportResults("atrox-export-results",
-                                         llvm::cl::desc("export results"),
-                                         llvm::cl::cat(AtroxCLCategory));
+static llvm::cl::opt<bool>
+    ExportResults("atrox-export-results",
+                  llvm::cl::desc("export results on successful extractions"),
+                  llvm::cl::cat(AtroxCLCategory));
+
+static llvm::cl::opt<bool>
+    ExportFailResults("atrox-export-fail-results",
+                      llvm::cl::desc("export results on failed extractions"),
+                      llvm::cl::cat(AtroxCLCategory));
 
 static void checkAndSetCmdLineOptions() {
   if (!SelectionStrategyOption.getPosition()) {
@@ -159,7 +166,7 @@ bool LoopBodyClonerPass::perform(
   llvm::SmallVector<llvm::Function *, 32> workList;
   workList.reserve(M.size());
 
-  if (ExportResults) {
+  if (ExportResults || ExportFailResults) {
     auto dirOrErr = iteratorrecognition::CreateDirectory(AtroxReportsDir);
     if (std::error_code ec = dirOrErr.getError()) {
       llvm::errs() << "Error: " << ec.message() << '\n';
@@ -201,7 +208,7 @@ bool LoopBodyClonerPass::perform(
 
     LLVM_DEBUG(llvm::dbgs() << "processing func: " << F.getName() << '\n';);
 
-    LoopBodyCloner lpc{M, ExportResults};
+    LoopBodyCloner lpc{M, ExportResults, ExportFailResults};
 
     // TODO consider obtaining these from pass manager and
     // preserving/invalidating them appropriately
@@ -225,12 +232,24 @@ bool LoopBodyClonerPass::perform(
       hasChanged |= lpc.cloneLoops(li, s, &*itrInfo, &SE, &AA);
     }
 
-    if (ExportResults) {
+    if (ExportResults || ExportFailResults) {
+      unsigned int successCnt = 0, failCnt = 0;
       auto &i = lpc.getInfo();
 
       for (auto &e : i) {
-        WriteJSONToFile(llvm::json::toJSON(e), "lpc." + e.Func->getName(),
-                        AtroxReportsDir);
+        if (e.Func) {
+          WriteJSONToFile(llvm::json::toJSON(e),
+                          "lpc." + F.getName() + ".extracted." +
+                              std::to_string(successCnt),
+                          AtroxReportsDir);
+          successCnt++;
+        } else {
+          WriteJSONToFile(llvm::json::toJSON(e),
+                          "lpc." + F.getName() + ".unextracted." +
+                              std::to_string(failCnt),
+                          AtroxReportsDir);
+          failCnt++;
+        }
       }
     }
   }

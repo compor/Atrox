@@ -175,7 +175,6 @@ public:
     ce.setAccesses(&accesses);
     auto *extractedFunc = ce.cloneCodeRegion();
     llvm::SmallVector<ArgDirection, 16> argDirs;
-    std::vector<ArgSpec> specs;
 
     if (extractedFunc) {
       hasChanged = true;
@@ -194,17 +193,17 @@ public:
         assert(extractedFunc->arg_size() == argDirs.size() &&
                "Arguments and their specs must be the same number!");
 
+        std::vector<ArgSpec> specs;
+
         auto argIt = extractedFunc->arg_begin();
         for (size_t i = 0; i < argDirs.size(); ++i) {
           specs.push_back(
               {argIt->getName(), argDirs[i], argIteratorVariance[i]});
           ++argIt;
         }
-      }
-    }
 
-    if (StoreSuccessInfo || StoreFailInfo) {
-      StoreInfo.push_back({extractedFunc, &L, specs});
+        StoreInfo.push_back({extractedFunc, &L, specs});
+      }
     }
 
     return hasChanged;
@@ -231,8 +230,15 @@ public:
 
       LLVM_DEBUG(llvm::dbgs() << "processing loop: "
                               << curLoop->getHeader()->getName() << '\n';);
-      hasChanged |= cloneLoop(*curLoop, LI, Selector, ITRInfoOrEmpty,
-                              idtOrEmpty, lba, AA);
+
+      if (cloneLoop(*curLoop, LI, Selector, ITRInfoOrEmpty, idtOrEmpty, lba,
+                    AA)) {
+        hasChanged = true;
+      } else {
+        if (StoreFailInfo) {
+          StoreInfo.push_back({nullptr, curLoop, {}});
+        }
+      }
     }
 
     return hasChanged;
