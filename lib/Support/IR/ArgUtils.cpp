@@ -30,7 +30,7 @@ bool ReorderInputs(llvm::SetVector<llvm::Value *> &Inputs,
                    const iteratorrecognition::IteratorInfo &Info) {
   bool changed = false;
 
-  if(Inputs.size()) {
+  if (!Inputs.size()) {
     return changed;
   }
 
